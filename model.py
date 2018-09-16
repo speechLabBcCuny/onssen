@@ -3,8 +3,7 @@ import torch.nn as nn
 
 class DCNet(nn.Module):
     def __init__(
-        self,input_size,batch_size, hidden_size,embed_dim,num_layers):
-        self.batch_size = batch_size
+        self,input_size, hidden_size,embed_dim,num_layers):
         self.num_layers = num_layers
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -14,9 +13,10 @@ class DCNet(nn.Module):
 
     def forward(self, x):
        #x is N*T*F tensor
+       batch_size = x.shape[0]
        hidden = (
-                torch.randn(self.num_layers*2, self.batch_size, self.hidden_size),
-                torch.randn(self.num_layers*2, self.batch_size, self.hidden_size)
+                torch.randn(self.num_layers*2, batch_size, self.hidden_size),
+                torch.randn(self.num_layers*2, batch_size, self.hidden_size)
                 )
        out, hidden = self.lstm(x,hidden)
        vec = self.fc(out)

@@ -12,10 +12,10 @@ square root of the hann window
 '''
 import scipy
 import numpy as np
-
+from scipy.io import loadmat
 
 def normalize_feat(fn):
-    abs_tf = np.log10(np.abs(np.transpose(scipy.io.loadmat(fn)['stft']))+1e-7)
+    abs_tf = np.log10(np.abs(np.transpose(loadmat(fn)['stft']))+1e-7)
     return abs_tf
 
 def get_feature(feat, fn):

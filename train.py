@@ -34,7 +34,7 @@ for epoch in range(num_epoch):
         optimizer.zero_grad()
         loss = loss_func(out.float(),labels.float(),40)
         loss.backward()
-        if batch%100==0:
+        if batch%10==0:
             print("loss: %f"%loss)
         optimizer.step()
     torch.save(model,'%d_model'%epoch)

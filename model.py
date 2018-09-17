@@ -22,20 +22,21 @@ class DCNet(nn.Module):
        vec = self.fc(out)
        return vec
 
-def loss_func(out,target,embed_dim):
+def loss_func(V,Y,embed_dim):
     #out is N*T*(F*embed_dim)
     #reshape it to -1*embed_dim
-    out =out.view(-1,12900,embed_dim)
-    target = target.view(-1,12900,3)
-    l = 0.0
-    for i in range(out.shape[0]):
-        A = torch.matmul(target[i], torch.t(target[i]))
-        A_ = torch.matmul(out[i], torch.t(out[i]))
-        l += torch.norm(A - A_,p=2)
-    return l/(out.shape[0]*out.shape[1])
+    V =V.view(-1,embed_dim)
+    Y = Y.view(-1,3)
+    I = torch.ones((1,Y.shape[0]), dtype=torch.float)
+    D = torch.matmul(Y,torch.t(torch.matmul(I,Y)))
+    D_sqrt = 1/torch.sqrt(D)
+    D_sqrt = D_sqrt.reshape(D_sqrt.shape[0])
+    l =0.0
+    l += torch.norm(torch.matmul(torch.t(V)*D_sqrt,V),p=2)
+    l -=2*torch.norm(torch.matmul(torch.t(V)*D_sqrt,Y),p=2)
+    l += torch.norm(torch.matmul(torch.t(Y)*D_sqrt,Y),p=2)
+    return l/Y.shape[0]
 
 #TODO
 #Add batch norm module at the first (or all) Module
-#define the loss function in the paper
-#Extract the feature and seg it to batch*100*513
 #Train on 100 frame segs then 400 segs

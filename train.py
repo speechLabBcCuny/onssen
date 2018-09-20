@@ -32,7 +32,7 @@ for epoch in range(num_epoch):
         target = target[3200:,:,:]
         out = model(inputs)
         optimizer.zero_grad()
-        loss = loss_func(out.float(),labels.float(),inputs, 40)
+        loss = loss_func(out.float(),labels.float(), 40)
         loss.backward()
         if batch%10==0:
             print("loss: %f"%loss)

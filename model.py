@@ -23,14 +23,13 @@ class DCNet(nn.Module):
        vec_tanh = self.tanh(vec)
        return vec_tanh
 
-def loss_func(V,Y,tf_mix,embed_dim):
+def loss_func(V,Y,embed_dim):
     #out is N*T*(F*embed_dim)
     #reshape it to -1*embed_dim
-    V =V.reshape(tf_mix.shape[0],tf_mix.shape[1],tf_mix.shape[2],embed_dim)
-    Y = Y.reshape(tf_mix.shape[0],tf_mix.shape[1],tf_mix.shape[2],3)
-    m = torch.max(tf_mix) - 40/20
-    V = V[tf_mix>m]
-    Y = Y[tf_mix>m]
+    V = V.reshape(-1,embed_dim)
+    Y = Y.reshape(-1,3)
+    V = V[Y[:,2]!=0]
+    Y = Y[Y[:,2]!=0]
     I = torch.ones((1,Y.shape[0]), dtype=torch.float)
     D = torch.matmul(Y,torch.t(torch.matmul(I,Y)))
     D_sqrt = 1/torch.sqrt(D)
@@ -39,7 +38,7 @@ def loss_func(V,Y,tf_mix,embed_dim):
     l += torch.norm(torch.matmul(torch.t(V)*D_sqrt,V),p=2)
     l -=2*torch.norm(torch.matmul(torch.t(V)*D_sqrt,Y),p=2)
     l += torch.norm(torch.matmul(torch.t(Y)*D_sqrt,Y),p=2)
-    return l/Y.shape[0]
+    return l/Y.shape[0]*100
 
 # def loss_func(out,target,embed_dim):
 #     #out is N*T*(F*embed_dim)

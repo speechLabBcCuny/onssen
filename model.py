@@ -10,23 +10,27 @@ class DCNet(nn.Module):
         super(DCNet, self).__init__()
         self.lstm = nn.LSTM(input_size,hidden_size,num_layers,dropout = 0.2, bidirectional=True,batch_first = True)
         self.fc = nn.Linear(hidden_size*2,embed_dim*input_size)
-
+        self.tanh = nn.Tanh()
     def forward(self, x):
        #x is N*T*F tensor
        batch_size = x.shape[0]
        hidden = (
-                torch.randn(self.num_layers*2, batch_size, self.hidden_size),
-                torch.randn(self.num_layers*2, batch_size, self.hidden_size)
+                torch.zeros(self.num_layers*2, batch_size, self.hidden_size),
+                torch.zeros(self.num_layers*2, batch_size, self.hidden_size)
                 )
        out, hidden = self.lstm(x,hidden)
        vec = self.fc(out)
-       return vec
+       vec_tanh = self.tanh(vec)
+       return vec_tanh
 
-def loss_func(V,Y,embed_dim):
+def loss_func(V,Y,tf_mix,embed_dim):
     #out is N*T*(F*embed_dim)
     #reshape it to -1*embed_dim
-    V =V.view(-1,embed_dim)
-    Y = Y.view(-1,3)
+    V =V.reshape(tf_mix.shape[0],tf_mix.shape[1],tf_mix.shape[2],embed_dim)
+    Y = Y.reshape(tf_mix.shape[0],tf_mix.shape[1],tf_mix.shape[2],3)
+    m = torch.max(tf_mix) - 40/20
+    V = V[tf_mix>m]
+    Y = Y[tf_mix>m]
     I = torch.ones((1,Y.shape[0]), dtype=torch.float)
     D = torch.matmul(Y,torch.t(torch.matmul(I,Y)))
     D_sqrt = 1/torch.sqrt(D)
@@ -36,6 +40,18 @@ def loss_func(V,Y,embed_dim):
     l -=2*torch.norm(torch.matmul(torch.t(V)*D_sqrt,Y),p=2)
     l += torch.norm(torch.matmul(torch.t(Y)*D_sqrt,Y),p=2)
     return l/Y.shape[0]
+
+# def loss_func(out,target,embed_dim):
+#     #out is N*T*(F*embed_dim)
+#     #reshape it to -1*embed_dim
+#     out =out.view(-1,12900,embed_dim)
+#     target = target.view(-1,12900,3)
+#     l = 0.0
+#     for i in range(out.shape[0]):
+#         A = torch.matmul(target[i], torch.t(target[i]))
+#         A_ = torch.matmul(out[i], torch.t(out[i]))
+#         l += torch.norm(A - A_,p=2)
+#     return l/(out.shape[0]*out.shape[1])
 
 #TODO
 #Add batch norm module at the first (or all) Module

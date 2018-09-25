@@ -18,6 +18,14 @@ def normalize_feat(fn):
     abs_tf = np.log10(np.abs(np.transpose(loadmat(fn)['stft']))+1e-7)
     return abs_tf
 
+def get_magnitude(magnitude, fn):
+    tf = np.abs(np.transpose(scipy.io.loadmat(fn)['stft']))
+    if magnitude is not None:
+        magnitude = np.concatenate((magnitude,tf),axis = 0)
+    else:
+        magnitude = tf
+    return magnitude
+
 def get_feature(feat, fn):
     tf = normalize_feat(fn)
     if feat is not None:
@@ -37,14 +45,14 @@ def get_one_hot(target, fn):
     vals = np.argmax(specs, axis=0)
     Y = np.zeros(tf1.shape+(3,))
     for i in range(2):
-        t = np.zeros(3)
-        t[i] = 1
-        Y[vals == i] = t
+        temp = np.zeros((3))
+        temp[i]=1
+        Y[vals == i] = temp
     #label the silence part
     m = np.max(tf_mix) - 40/20
-    t = np.zeros(3)
-    t[2]=1
-    Y[tf_mix < m] = t
+    temp = np.zeros((3))
+    temp[2]=1
+    Y[tf_mix < m] = temp
     if target is None:
         return Y
     else:
@@ -60,3 +68,14 @@ def generate_samples(f_list, feat = None, target = None):
         feat = get_feature(feat, fn)
         target = get_one_hot(target, fn)
     return feat, target
+
+def generate_samples_chimera_net(f_list, batch_size=32, magnitude = None, feat = None, target = None):
+    #generate X * 100 * 129 feature
+    # and     X * 100 * 3   label
+    while (feat is None or feat.shape[0]<100*batch_size) and len(f_list)>0:
+        #feature part
+        fn = f_list.pop(0)
+        magnitude = get_magnitude(magnitude, fn)
+        feat = get_feature(feat, fn)
+        target = get_one_hot(target, fn)
+    return magnitude, feat, target

@@ -78,4 +78,15 @@ def generate_samples_chimera_net(f_list, batch_size=32, magnitude = None, feat =
         magnitude = get_magnitude(magnitude, fn)
         feat = get_feature(feat, fn)
         target = get_one_hot(target, fn)
-    return magnitude, feat, target
+    if feat.shape[0]<batch_size*100:
+        return (None,None,None),(None,None,None)
+    inputs = feat[0:batch_size*100,:]
+    labels = target[0:batch_size*100,:,:]
+    mag = magnitude[0:batch_size*100,:]
+    mag = mag.reshape((batch_size,100,129))
+    inputs = inputs.reshape((batch_size,100,129))
+    labels = labels.reshape((batch_size,100,129,3))
+    magnitude = magnitude[batch_size*100:,:]
+    feat = feat[batch_size*100:,:]
+    target = target[batch_size*100:,:,:]
+    return (mag, inputs, labels),(magnitude, feat, target)

@@ -51,7 +51,7 @@ def get_one_hot(target, fn):
     #label the silence part
     m = np.max(tf_mix) - 40/20
     temp = np.zeros((3))
-    temp[2]=1
+    # temp[2]=1
     Y[tf_mix < m] = temp
     if target is None:
         return Y

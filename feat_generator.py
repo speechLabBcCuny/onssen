@@ -16,33 +16,33 @@ import numpy as np
 import librosa
 from stft_utils import e_stft, e_istft
 
-def normalize_feat(fn):
+def normalize_feat(fn, num_frame):
     sig, fs = librosa.load(fn,sr=SAMPLING_RATE)
     assert(fs==SAMPLING_RATE)
     # sig = sig-np.mean(sig)
     # sig = sig/(np.max(np.abs(sig))) +1e-7
     n_sample = sig.shape[0]
-    stft = e_stft(sig,WINDOW_LENGTH,HOG,'hamming')
+    stft = e_stft(sig,WINDOW_LENGTH,HOG,'hann')
     abs_tf = np.log10(np.abs(np.transpose(stft))+1e-7)
-    remain = abs_tf.shape[0]%100
+    remain = abs_tf.shape[0]%num_frame
     #abs_tf = np.concatenate((abs_tf,abs_tf[:remain,:]),axis = 0)
     return abs_tf[:-remain,:]
 
-def get_stft(fn):
+def get_stft(fn, num_frame):
     sig, fs = librosa.load(fn,sr=SAMPLING_RATE)
     assert(fs==SAMPLING_RATE)
-    stft = e_stft(sig,WINDOW_LENGTH,HOG,'hamming')
+    stft = e_stft(sig,WINDOW_LENGTH,HOG,'hann')
     stft = np.log10(np.abs(np.transpose(stft))+1e-7)
-    remain = stft.shape[0]%100
+    remain = stft.shape[0]%num_frame
     #stft = np.concatenate((stft,stft[:remain,:]),axis = 0)
     return stft[:-remain,:]
 
-def get_magnitude(magnitude, fn):
+def get_magnitude(magnitude, fn, num_frame):
     sig, fs = librosa.load(fn,sr=SAMPLING_RATE)
     n_sample = sig.shape[0]
-    stft = e_stft(sig,WINDOW_LENGTH,HOG,'hamming')
+    stft = e_stft(sig,WINDOW_LENGTH,HOG,'hann')
     abs_tf = np.abs(np.transpose(stft))
-    remain = abs_tf.shape[0]%100
+    remain = abs_tf.shape[0]%num_frame
     abs_tf = abs_tf[:-remain,:]
     #abs_tf = np.concatenate((abs_tf,abs_tf[:remain,:]),axis = 0)
     if magnitude is not None:
@@ -51,22 +51,22 @@ def get_magnitude(magnitude, fn):
         magnitude = abs_tf
     return magnitude
 
-def get_feature(feat, fn):
-    tf= normalize_feat(fn)
+def get_feature(feat, fn, num_frame):
+    tf= normalize_feat(fn, num_frame)
     if feat is not None:
         feat = np.concatenate((feat,tf),axis = 0)
     else:
         feat = tf
     return feat
 
-def get_one_hot(target, fn):
-    tf_mix = get_stft(fn)
+def get_one_hot(target, fn, num_frame):
+    tf_mix = get_stft(fn, num_frame)
     if tf_mix.shape[0]==0:
         return target
     fn_s1 = fn.replace('mix','s1')
     fn_s2 = fn.replace('mix','s2')
-    tf1 = get_stft(fn_s1)
-    tf2 = get_stft(fn_s2)
+    tf1 = get_stft(fn_s1, num_frame)
+    tf2 = get_stft(fn_s2, num_frame)
     #do we need normalize the spectrogram?
     specs = np.asarray([tf1, tf2])
     vals = np.argmax(specs, axis=0)
@@ -86,24 +86,28 @@ def get_one_hot(target, fn):
         return np.concatenate((target,Y),axis = 0)
 
 
-def generate_samples_chimera_net(f_list, batch_size=32):
+def generate_samples_chimera_net(f_list, batch_size=32, num_frame=100):
     #generate X * 100 * 129 feature
     # and     X * 100 * 3   label
-    magnitude = None
+    noisy_mag = None
+    clean_s1 = None
+    clean_s2 = None
     feat = None
     target = None
-    while (feat is None or feat.shape[0]<100*batch_size) and len(f_list)>0:
+    while (feat is None or feat.shape[0]<num_frame*batch_size) and len(f_list)>0:
         #feature part
         fn = f_list.pop(0)
         f_list.append(fn)
-        magnitude = get_magnitude(magnitude, fn)
-        feat = get_feature(feat, fn)
-        target = get_one_hot(target, fn)
-    if feat.shape[0]<batch_size*100:
+        noisy_mag = get_magnitude(noisy_mag, fn, num_frame)
+        clean_s1 = get_magnitude(clean_s1, fn.replace('mix','s1'), num_frame)
+        clean_s2 = get_magnitude(clean_s2, fn.replace('mix','s2'), num_frame)
+        feat = get_feature(feat, fn, num_frame)
+        target = get_one_hot(target, fn, num_frame)
+    if feat.shape[0]<batch_size*num_frame:
         return (None,None,None)
-    feat = feat[0:batch_size*100,:]
-    target = target[0:batch_size*100,:]
-    magnitude = magnitude.reshape((-1,100,129))
-    feat = feat.reshape((-1,100,129))
-    target = target.reshape((-1,100,129,NUM_SPEAKER))
-    return (magnitude, feat, target)
+    feat = feat[0:batch_size*num_frame,:].reshape((-1,num_frame,129))
+    target = target[0:batch_size*num_frame,:].reshape((-1,num_frame,129,NUM_SPEAKER))
+    noisy_mag = noisy_mag[0:batch_size*num_frame,:].reshape((-1,num_frame,129))
+    clean_s1 = clean_s1[0:batch_size*num_frame,:].reshape((-1,num_frame,129))
+    clean_s2 = clean_s2[0:batch_size*num_frame,:].reshape((-1,num_frame,129))
+    return (noisy_mag, clean_s1, clean_s2, feat, target)

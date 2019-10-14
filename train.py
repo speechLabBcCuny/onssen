@@ -1,21 +1,29 @@
-import argparse
 from attrdict import AttrDict
-from data.features import wsj0_2mix_dataloader
-import json
 from losses.loss_util import get_lossfns
-import nn
-import torch
-import time
-import os
 from utils import AverageMeter
+import argparse, data, json, nn, numpy as np, os, time, torch
+
+
+def get_free_gpu():
+    os.system('nvidia-smi -q -d Memory |grep -A4 GPU|grep Free >tmp')
+    memory_available = [int(x.split()[2]) for x in open('tmp', 'r').readlines()]
+    return np.argmax(memory_available)
 
 
 class trainer:
     def __init__(self, args):
         self.model_name = args.model_name
         self.loss_name = args.loss_option
+        self.dataset = args.dataset
+        if args.cuda_option == "True":
+            print("GPU mode on...")
+            available_device = get_free_gpu()
+            print("We found an available GPU: %d!"%available_device)
+            self.device = torch.device('cuda:%d'%available_device)
+        else:
+            self.device = torch.device('cpu')
         # build model
-        self.model = self.init_model(args.model_name, args.model_options, args.cuda)
+        self.model = self.init_model(args.model_name, args.model_options)
         print("Loaded the model...")
         # build loss fn
         self.loss_fn = self.build_lossfn(args.loss_option)
@@ -24,20 +32,23 @@ class trainer:
         self.optimizer = self.build_optimizer(self.model.parameters(), args.optimizer_options)
         print("Built the optimizer...")
         # build DataLoaders
-        if args.num_speaker == 2:
-            self.train_loader = wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tt', args.cuda)
-            self.valid_loader = wsj0_2mix_dataloader(args.model_name, args.feature_options, 'cv', args.cuda)
+        if args.dataset == "wsj0-2mix":
+            self.train_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tt', args.cuda_option, self.device)
+            self.valid_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'cv', args.cuda_option, self.device)
+        elif args.dataset == "daps":
+            self.train_loader = data.daps_enhance_dataloader(args.train_num_batch, args.feature_options, 'train', args.cuda_option, self.device)
+            self.valid_loader = data.daps_enhance_dataloader(args.vaildate_num_batch, args.feature_options, 'validation', args.cuda_option, self.device)
         # training options
         self.num_epoch = args.num_epoch
-        self.output_path = args.output_path
+        self.output_path = args.output_path+'/%s_%s_%s'%(self.model_name, self.dataset, self.loss_name)
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
         self.min_loss = float("inf")
         self.early_stop_count = 0
 
-    def init_model(self, model_name, model_options, cuda):
+    def init_model(self, model_name, model_options):
         assert model_name is not None, "Model name must be defined!"
-        assert model_name in ["dc", "chimera", "chimera++", "phase"],\
+        assert model_name in ["dc", "chimera", "chimera++", "phase", "enhance"],\
         "Model name is not supported! Must be one of (dc, chimera, chimera++, phase)"
         if model_name == "dc":
             model = nn.deep_clustering(
@@ -50,6 +61,7 @@ class trainer:
         if model_name == "chimera" or model_name == "chimera++":
             model = nn.chimera(
                 model_options.input_dim,
+                model_options.output_dim,
                 model_options.get("hidden_dim",None),
                 model_options.get("embedding_dim",None),
                 model_options.get("num_layers",None),
@@ -63,10 +75,16 @@ class trainer:
                 model_options.get("num_layers",None),
                 model_options.get("dropout",0.3),
             )
-            
-        if cuda == "True":
-            print("GPU mode on...")
-            model.cuda()
+        if model_name == "enhance":
+            model = nn.enhance(
+                model_options.input_dim,
+                model_options.output_dim,
+                model_options.get("hidden_dim",None),
+                model_options.get("num_layers",None),
+                model_options.get("dropout",0.3),
+            )
+
+        model.to(self.device)
         return model
 
 
@@ -99,8 +117,8 @@ class trainer:
         times.reset()
         self.model.train()
         len_d = len(self.train_loader)
+        end = time.time()
         for i, data in enumerate(self.train_loader):
-            begin = time.time()
             input, label = data
             output = self.model(input)
             loss = self.loss_fn(output, label)
@@ -108,9 +126,10 @@ class trainer:
             losses.update(loss_avg.item())
             self.optimizer.zero_grad()
             loss_avg.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
             self.optimizer.step()
+            times.update(time.time()-end)
             end = time.time()
-            times.update(end-begin)
             print('epoch %d, %d/%d, training loss: %f, time estimated: %.2f seconds'%(epoch, i+1,len_d,losses.avg, times.avg*len_d), end='\r')
         print("\n")
 
@@ -122,21 +141,24 @@ class trainer:
         losses.reset()
         times.reset()
         len_d = len(self.valid_loader)
+        end = time.time()
         for i, data in enumerate(self.valid_loader):
             begin = time.time()
             input, label = data
+            if torch.sum(label[0]) < 1:
+                continue
             output = self.model(input)
             loss = self.loss_fn(output, label)
             loss_avg = torch.mean(loss)
             losses.update(loss_avg.item())
+            times.update(time.time()-end)
             end = time.time()
-            times.update(end-begin)
             print('epoch %d, %d/%d, validation loss: %f, time estimated: %.2f seconds'%(epoch, i+1,len_d,losses.avg, times.avg*len_d), end='\r')
         print("\n")
         if losses.avg < self.min_loss:
             self.early_stop_count = 0
             self.min_loss = losses.avg
-            torch.save(self.model,self.output_path+"/model_%s_%s.epoch%d"%(self.model_name, self.loss_name, epoch))
+            torch.save(self.model,self.output_path+"/model.epoch%d"%epoch)
             print("Saved new model")
         else:
             self.early_stop_count += 1

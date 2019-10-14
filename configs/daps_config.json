@@ -1,0 +1,29 @@
+{
+  "model_name": "enhance",
+  "dataset": "daps",
+  "feature_options": {
+    "data_path": "/home/data/daps",
+    "batch_size": 8,
+    "frame_length": 400,
+    "sampling_rate": 44100,
+    "window_size": 2048,
+    "hop_size": 441
+  },
+  "optimizer_options": {
+    "name": "adam",
+    "lr": 0.001
+  },
+  "model_options": {
+    "input_dim": 1025,
+    "output_dim": 1025,
+    "hidden_dim": 600,
+    "num_layers": 3,
+    "dropout": 0.3
+  },
+  "loss_option": "loss_mask_msa",
+  "train_num_batch": 300,
+  "vaildate_num_batch": 300,
+  "num_epoch": 200,
+  "output_path": "./output/",
+  "cuda_option": "True"
+}

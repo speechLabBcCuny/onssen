@@ -6,4 +6,5 @@ and also returns a list of tensors as the output.
 
 from .chimera import chimera
 from .deep_clustering import deep_clustering
+from .enhancement import enhance
 from .phase_network import phase_net

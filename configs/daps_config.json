@@ -16,7 +16,7 @@
   "model_options": {
     "input_dim": 1025,
     "output_dim": 1025,
-    "hidden_dim": 600,
+    "hidden_dim": 300,
     "num_layers": 3,
     "dropout": 0.3
   },

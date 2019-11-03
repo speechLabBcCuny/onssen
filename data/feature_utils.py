@@ -13,8 +13,23 @@ def get_stft(fn, sampling_rate, window_size, hop_size):
         stft: frame * frequency numpy array
     """
     sig, fs = librosa.load(fn, sr = None)
-    assert sampling_rate == fs
+    if fs != sampling_rate:
+        # print("WARNING!!! The sampling rate provided is different from the data")
+        # print("Resample the audio...")
+        sig = librosa.core.resample(sig, fs, sampling_rate)
     stft = np.transpose(librosa.core.stft(sig, n_fft=window_size, hop_length=hop_size))
+    return stft
+
+
+def get_stft_from_subtraction(f_mix, f_clean, sampling_rate, window_size, hop_size):
+    sig_mix, fs = librosa.load(f_mix, sr = None)
+    sig_clean, fs = librosa.load(f_clean, sr = None)
+    sig_noise = sig_mix - sig_clean
+    if fs != sampling_rate:
+        # print("WARNING!!! The sampling rate provided is different from the data")
+        # print("Resample the audio...")
+        sig_noise = librosa.core.resample(sig_noise, fs, sampling_rate)
+    stft = np.transpose(librosa.core.stft(sig_noise, n_fft=window_size, hop_length=hop_size))
     return stft
 
 

@@ -21,7 +21,7 @@ def loss_phase(output, label):
     amin = loss_mask1<loss_mask2
     loss_mask = torch.zeros_like(loss_mask1)
     loss_mask[amin] = loss_mask1[amin]
-    loss_mask[1-amin] = loss_mask2[1-amin]
+    loss_mask[~amin] = loss_mask2[~amin]
 
     loss_phase1 = -mag_mix * F.cosine_similarity(phase_A, phase_s1, dim=3)\
                   -mag_mix * F.cosine_similarity(phase_B, phase_s2, dim=3)
@@ -32,6 +32,6 @@ def loss_phase(output, label):
     loss_phase2 = torch.sum(loss_phase2.reshape(batch_size,-1),dim=1)
     loss_phase = torch.zeros_like(loss_phase1)
     loss_phase[amin] = loss_phase1[amin]
-    loss_phase[1-amin] = loss_phase2[1-amin]
+    loss_phase[~amin] = loss_phase2[~amin]
 
     return loss_embedding*0.975 + loss_mask*0.025 + loss_phase*0.025

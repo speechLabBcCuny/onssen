@@ -1,5 +1,6 @@
 {
   "model_name": "chimera",
+  "dataset": "wsj0-2mix",
   "feature_options": {
     "data_path": "/home/data/wsj0-2mix/",
     "batch_size": 16,
@@ -19,9 +20,9 @@
     "embedding_dim": 20,
     "num_layers": 3
   },
-  "loss_option": "loss_msa",
+  "loss_option": "loss_chimera_msa",
   "num_speaker": 2,
   "num_epoch": 200,
   "output_path": "./output/",
-  "cuda": "False"
+  "cuda_option": "True"
 }

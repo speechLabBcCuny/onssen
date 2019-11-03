@@ -3,29 +3,28 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class chimera(nn.Module):
-    def __init__(
-        self,
-        input_dim,
-        output_dim,
-        hidden_dim=300,
-        embedding_dim=20,
-        num_layers=3,
-        dropout=0.5,
-        num_speaker=2,
-    ):
+    def __init__(self, model_options):
         super(chimera, self).__init__()
+        self.input_dim = model_options.input_dim
+        self.output_dim = model_options.output_dim if "output_dim" in model_options else self.input_dim
+        self.hidden_dim = model_options.hidden_dim if "hidden_dim" in model_options else 300
+        self.num_layers = model_options.num_layers if "num_layers" in model_options else 3
+        self.embedding_dim = model_options.embedding_dim if "embedding_dim" in model_options else 20
+        self.dropout = model_options.dropout if "dropout" in model_options else 0.3
+        self.num_speaker = model_options.num_speaker if "num_speaker" in model_options else 2
         rnn = nn.LSTM(
-            input_dim,
-            hidden_dim,
-            num_layers,
-            dropout=dropout,
+            self.input_dim,
+            self.hidden_dim,
+            self.num_layers,
+            dropout=self.dropout,
             bidirectional=True,
             batch_first = True
         )
-        fc_dc = nn.Linear(hidden_dim * 2, output_dim * embedding_dim)
-        fc_mi = nn.Linear(hidden_dim * 2, output_dim * num_speaker)
-        self.output_dim = output_dim
+        bn = nn.BatchNorm1d(self.hidden_dim*2)
+        fc_dc = nn.Linear(self.hidden_dim * 2, self.output_dim * self.embedding_dim)
+        fc_mi = nn.Linear(self.hidden_dim * 2, self.output_dim * self.num_speaker)
         self.add_module('rnn', rnn)
+        self.add_module('bn', bn)
         self.add_module('fc_dc', fc_dc)
         self.add_module('fc_mi', fc_mi)
 
@@ -35,6 +34,9 @@ class chimera(nn.Module):
         batch_size, frame_size, _ = x.size()
         self.rnn.flatten_parameters()
         rnn_output, hidden = self.rnn(x)
+        rnn_output = rnn_output.permute(0, 2, 1)
+        rnn_output = self.bn(rnn_output)
+        rnn_output = rnn_output.permute(0, 2, 1)
         embedding = self.fc_dc(rnn_output)
         masks = self.fc_mi(rnn_output)
         embedding = embedding.reshape(batch_size, frame_size*self.output_dim, -1)

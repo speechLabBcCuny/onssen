@@ -17,18 +17,19 @@ from torch.utils.data import DataLoader
 from .feature_utils import *
 import glob
 import numpy as np
+import torch
 
 
-def wsj0_2mix_dataloader(model_name, feature_options, partition, cuda):
+def wsj0_2mix_dataloader(model_name, feature_options, partition, cuda_option, cuda_device=None):
         return DataLoader(
-            wsj0_2mix_dataset(model_name, feature_options, partition, cuda),
+            wsj0_2mix_dataset(model_name, feature_options, partition, cuda_option, cuda_device=cuda_device),
             batch_size=feature_options.batch_size,
             shuffle=True,
         )
 
 
 class wsj0_2mix_dataset(Dataset):
-    def __init__(self, model_name, feature_options, partition, cuda):
+    def __init__(self, model_name, feature_options, partition, cuda_option, cuda_device=None):
         """
         The arguments:
             feature_options: a dictionary containing the feature params
@@ -61,7 +62,8 @@ class wsj0_2mix_dataset(Dataset):
         self.frame_length = feature_options.frame_length
         self.db_threshold = feature_options.db_threshold
         self.model_name = model_name
-        self.cuda = cuda
+        self.cuda_option = cuda_option
+        self.cuda_device = cuda_device
         self.file_list = []
         full_path = feature_options.data_path+'/wav8k/min/'+partition+'/mix/*.wav'
         self.file_list = glob.glob(full_path)
@@ -108,9 +110,9 @@ class wsj0_2mix_dataset(Dataset):
             phase_s2 = get_phase(stft_s2)
             input, label = [feature_mix, phase_mix], [one_hot_label, mag_mix, mag_s1, mag_s2, phase_s1, phase_s2]
 
-        if self.cuda == "True":
-            input = [torch.Tensor(ele).cuda() for ele in input]
-            label = [torch.Tensor(ele).cuda() for ele in label]
+        if self.cuda_option == "True":
+            input = [torch.tensor(ele).to(self.cuda_device) for ele in input]
+            label = [torch.tensor(ele).to(self.cuda_device) for ele in label]
 
         return input, label
 

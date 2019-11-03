@@ -1,4 +1,5 @@
-import torch
+import glob, numpy as np, torch
+from sklearn.model_selection import train_test_split
 
 
 def T(tensor):
@@ -32,3 +33,10 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
+
+
+def generate_train_validation_list(data_path, train_size=0.8):
+    file_list = glob.glob(data_path+'*.wav')
+    file_list = np.array(file_list)
+    train, validation = train_test_split(filenames,train_size=train_size)
+    

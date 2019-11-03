@@ -33,11 +33,15 @@ class trainer:
         print("Built the optimizer...")
         # build DataLoaders
         if args.dataset == "wsj0-2mix":
-            self.train_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tt', args.cuda_option, self.device)
+            self.train_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tr', args.cuda_option, self.device)
             self.valid_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'cv', args.cuda_option, self.device)
         elif args.dataset == "daps":
             self.train_loader = data.daps_enhance_dataloader(args.train_num_batch, args.feature_options, 'train', args.cuda_option, self.device)
             self.valid_loader = data.daps_enhance_dataloader(args.vaildate_num_batch, args.feature_options, 'validation', args.cuda_option, self.device)
+        elif args.dataset == "edinburgh_tts":
+            self.train_loader = data.edinburgh_tts_dataloader(args.model_name, args.feature_options, 'train', args.cuda_option, self.device)
+            self.valid_loader = data.edinburgh_tts_dataloader(args.model_name, args.feature_options, 'validation', args.cuda_option, self.device)
+
         # training options
         self.num_epoch = args.num_epoch
         self.output_path = args.output_path+'/%s_%s_%s'%(self.model_name, self.dataset, self.loss_name)
@@ -51,38 +55,13 @@ class trainer:
         assert model_name in ["dc", "chimera", "chimera++", "phase", "enhance"],\
         "Model name is not supported! Must be one of (dc, chimera, chimera++, phase)"
         if model_name == "dc":
-            model = nn.deep_clustering(
-                model_options.input_dim,
-                model_options.get("hidden_dim",None),
-                model_options.get("embedding_dim",None),
-                model_options.get("num_layers",None),
-                model_options.get("dropout",0.3),
-            )
-        if model_name == "chimera" or model_name == "chimera++":
-            model = nn.chimera(
-                model_options.input_dim,
-                model_options.output_dim,
-                model_options.get("hidden_dim",None),
-                model_options.get("embedding_dim",None),
-                model_options.get("num_layers",None),
-                model_options.get("dropout",0.3),
-            )
-        if model_name == "phase":
-            model = nn.phase_net(
-                model_options.input_dim,
-                model_options.get("hidden_dim",None),
-                model_options.get("embedding_dim",None),
-                model_options.get("num_layers",None),
-                model_options.get("dropout",0.3),
-            )
-        if model_name == "enhance":
-            model = nn.enhance(
-                model_options.input_dim,
-                model_options.output_dim,
-                model_options.get("hidden_dim",None),
-                model_options.get("num_layers",None),
-                model_options.get("dropout",0.3),
-            )
+            model = nn.deep_clustering(model_options)
+        elif model_name == "chimera" or model_name == "chimera++":
+            model = nn.chimera(model_options)
+        elif model_name == "phase":
+            model = nn.phase_net(model_options)
+        elif model_name == "enhance":
+            model = nn.enhance(model_options)
 
         model.to(self.device)
         return model

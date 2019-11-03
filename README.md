@@ -35,8 +35,7 @@ python train.py -c configs/dc_config.json
 Citing
 ------
 
-If you are using nussl for your research project, we please ask that you cite it using one of the
-following bibtex citations:
+If you use onssen for your research project, please cite one of the following bibtex citations:
 
     @inproceedings {onssen,
         author = {Zhaoheng Ni and Michael Mandel},

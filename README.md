@@ -1,5 +1,5 @@
-# OSSEN: An Open-source Speech Separation and Enhancement Library
-=====
+ONSSEN: An Open-source Speech Separation and Enhancement Library
+======
 
 Supported Models
 ------
@@ -40,14 +40,14 @@ following bibtex citations:
 
     @inproceedings {onssen,
         author = {Zhaoheng Ni and Michael Mandel},
-        title = "OSSEN: An Open-source Speech Separation and Enhancement Library",
+        title = "ONSSEN: An Open-source Speech Separation and Enhancement Library",
         publisher = "under review",
         year = 2019
     }
 
     @Misc{onssen,
         author = {Zhaoheng Ni and Michael Mandel},
-        title = "OSSEN: An Open-source Speech Separation and Enhancement Library",
+        title = "ONSSEN: An Open-source Speech Separation and Enhancement Library",
         howpublished = {\url{https://github.com/speechLabBcCuny/onssen}},
         year =        {2019}
     }

@@ -6,11 +6,11 @@ import torch.nn.functional as F
 def loss_phase(output, label):
     assert len(output) == 5, "There must be 5 tensors in the output"
     assert len(label) == 6, "There must be 6 tensors in the label"
-    [embedding, mask_A, mask_B, phase_A, phase_B] = output
+    [embedding, mag_mix, mask_A, mask_B, phase_A, phase_B] = output
     [one_hot_label, mag_mix, mag_s1, mag_s2, phase_s1, phase_s2] = label
     batch_size, time_size, frequency_size = mag_mix.size()
     # compute the loss of embedding part
-    loss_embedding = loss_dc([embedding], [one_hot_label])
+    loss_embedding = loss_dc([embedding, mag_mix], [one_hot_label])
 
     #compute the loss of mask part
     loss_mask1 = norm_1d(mask_A*mag_mix - mag_s1)\

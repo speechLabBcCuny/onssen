@@ -46,4 +46,4 @@ class chimera(nn.Module):
         masks = masks.reshape(batch_size, frame_size, self.output_dim, -1)
         mask_A = masks[:,:,:,0]
         mask_B = masks[:,:,:,1]
-        return [embedding, mask_A, mask_B]
+        return [embedding, x, mask_A, mask_B]

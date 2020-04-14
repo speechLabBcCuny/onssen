@@ -15,7 +15,7 @@ def loss_dc(output, label):
     """
     assert len(output)==1, "Number of output must be 1 for Deep Clustering"
     assert len(label)==2, "Number of label must be 2 for Deep Clustering"
-    embedding = output
+    embedding, = output
     label, mag_mix = label
     label = label.float()
     batch_size, frame_dim, frequency_dim, one_hot_dim = label.size()

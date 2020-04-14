@@ -63,4 +63,4 @@ class phase_net(nn.Module):
         phase_B = phase_B + x_phase
         phase_A = F.normalize(phase_A, p=2, dim=-1)
         phase_B = F.normalize(phase_B, p=2, dim=-1)
-        return [embedding, x_mag, mask_A, mask_B, phase_A, phase_B]
+        return [embedding, mask_A, mask_B, phase_A, phase_B]

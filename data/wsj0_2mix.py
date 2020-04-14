@@ -94,7 +94,7 @@ class wsj0_2mix_dataset(Dataset):
         one_hot_label = get_one_hot(feature_mix, mag_s1, mag_s2, self.db_threshold)
 
         if self.model_name == "dc":
-            input, label = [feature_mix], [one_hot_label]
+            input, label = [feature_mix], [mag_mix, one_hot_label]
 
         if self.model_name == "chimera":
             input, label = [feature_mix], [one_hot_label, mag_mix, mag_s1, mag_s2]

@@ -38,4 +38,4 @@ class deep_clustering(nn.Module):
        embedding = embedding.view(batch_size, frame_size*self.output_dim, -1)
        embedding = F.normalize(embedding, p=2, dim=-1)
        embedding = embedding.reshape(batch_size, frame_size, self.output_dim, -1)
-       return [embedding, x]
+       return [embedding]

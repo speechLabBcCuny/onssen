@@ -14,19 +14,19 @@ def loss_dc(output, label):
         loss of deep clustering model/layer
     """
     assert len(output)==1, "Number of output must be 1 for Deep Clustering"
-    assert len(label)==1, "Number of label must be 1 for Deep Clustering"
-    embedding, mag_mix = output
-    label, = label
+    assert len(label)==2, "Number of label must be 2 for Deep Clustering"
+    embedding = output
+    label, mag_mix = label
     label = label.float()
     batch_size, frame_dim, frequency_dim, one_hot_dim = label.size()
     _, _, _, embedding_dim = embedding.size()
 
     embedding = embedding.view(batch_size, -1, embedding_dim)
-    max_mix = max_mix.view(batch_size, -1)
+    mag_mix = mag_mix.detach().view(batch_size, -1)
     label = label.view(batch_size, -1, one_hot_dim)
 
     # remove the loss of silence TF regions
-    silence_mask = torch.sum(label, dim=-1, keepdim=True)
+    silence_mask = label.sum(2, keepdim=True)
     embedding = silence_mask * embedding
 
     # referred as weight WR

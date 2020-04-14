@@ -15,6 +15,10 @@ class trainer:
         self.model_name = args.model_name
         self.loss_name = args.loss_option
         self.dataset = args.dataset
+        if "resume_from_checkpoint" in args and args.resume_from_checkpoint=="True":
+            self.resume_from_checkpoint = True
+        else:
+             self.resume_from_checkpoint = False
         if args.cuda_option == "True":
             print("GPU mode on...")
             available_device = get_free_gpu()
@@ -24,7 +28,7 @@ class trainer:
             self.device = torch.device('cpu')
 
         # build model
-        if args.resume_from_checkpoint:
+        if self.resume_from_checkpoint:
             self.resume_from_checkpoint(checkpoint_path)
         else:
             self.model = self.init_model(args.model_name, args.model_options)

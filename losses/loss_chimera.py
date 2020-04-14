@@ -15,7 +15,7 @@ def loss_chimera_msa(output, label):
         mag_s1: the magnitude of clean speech s1
         mag_s2: the magnitude of clean speech s2
     """
-    [embedding, mag_mix, mask_A, mask_B] = output
+    [embedding, mask_A, mask_B] = output
     [one_hot_label, mag_mix, mag_s1, mag_s2] = label
 
     # compute the loss of embedding part

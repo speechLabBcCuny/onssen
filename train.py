@@ -15,6 +15,10 @@ class trainer:
         self.model_name = args.model_name
         self.loss_name = args.loss_option
         self.dataset = args.dataset
+        if "resume_from_checkpoint" in args and args.resume_from_checkpoint=="True":
+            self.resume_from_checkpoint = True
+        else:
+             self.resume_from_checkpoint = False
         if args.cuda_option == "True":
             print("GPU mode on...")
             available_device = get_free_gpu()
@@ -22,9 +26,17 @@ class trainer:
             self.device = torch.device('cuda:%d'%available_device)
         else:
             self.device = torch.device('cpu')
+
         # build model
-        self.model = self.init_model(args.model_name, args.model_options)
+        if self.resume_from_checkpoint:
+            self.resume_from_checkpoint(checkpoint_path)
+        else:
+            self.model = self.init_model(args.model_name, args.model_options)
+            self.epoch = 0
+            self.min_loss = float("inf")
+            self.early_stop_count = 0
         print("Loaded the model...")
+
         # build loss fn
         self.loss_fn = self.build_lossfn(args.loss_option)
         print("Built the loss function...")
@@ -47,8 +59,8 @@ class trainer:
         self.output_path = args.output_path+'/%s_%s_%s'%(self.model_name, self.dataset, self.loss_name)
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
-        self.min_loss = float("inf")
-        self.early_stop_count = 0
+
+
 
     def init_model(self, model_name, model_options):
         assert model_name is not None, "Model name must be defined!"
@@ -80,13 +92,22 @@ class trainer:
             return torch.optim.RMSprop(params, lr=optimizer_options.lr)
 
     def run(self):
-        for epoch in range(self.num_epoch):
+        for epoch in range(self.epoch, self.num_epoch):
             self.train(epoch)
             self.validate(epoch)
             if self.early_stop_count == 5:
                 print("Model stops improving, stop the training")
                 break
         print("Model training is finished.")
+
+
+    def resume_from_checkpoint(self, checkpoint_path):
+        saved_dict = torch.load(checkpoint_path)
+        self.model = saved_dict["model"]
+        self.model = self.model.to(self.device)
+        self.epoch = saved_dict["epoch"]
+        self.min_loss = saved_dict["cv_loss"]
+        self.early_stop_count = saved_dict["early_stop_count"]
 
 
     def train(self, epoch):
@@ -96,7 +117,8 @@ class trainer:
         times.reset()
         self.model.train()
         len_d = len(self.train_loader)
-        end = time.time()
+        init_time = time.time()
+        end = init_time
         for i, data in enumerate(self.train_loader):
             input, label = data
             output = self.model(input)
@@ -109,7 +131,7 @@ class trainer:
             self.optimizer.step()
             times.update(time.time()-end)
             end = time.time()
-            print('epoch %d, %d/%d, training loss: %f, time estimated: %.2f seconds'%(epoch, i+1,len_d,losses.avg, times.avg*len_d), end='\r')
+            print('epoch %d, %d/%d, training loss: %f, time estimated: %.2f/%.2f seconds'%(epoch, i+1,len_d,losses.avg, end-init_time, times.avg*len_d), end='\r')
         print("\n")
 
 
@@ -120,7 +142,8 @@ class trainer:
         losses.reset()
         times.reset()
         len_d = len(self.valid_loader)
-        end = time.time()
+        init_time = time.time()
+        end = init_time
         for i, data in enumerate(self.valid_loader):
             begin = time.time()
             input, label = data
@@ -132,12 +155,19 @@ class trainer:
             losses.update(loss_avg.item())
             times.update(time.time()-end)
             end = time.time()
-            print('epoch %d, %d/%d, validation loss: %f, time estimated: %.2f seconds'%(epoch, i+1,len_d,losses.avg, times.avg*len_d), end='\r')
+            print('epoch %d, %d/%d, validation loss: %f, time estimated: %.2f/%.2f seconds'%(epoch, i+1,len_d,losses.avg, end-init_time, times.avg*len_d), end='\r')
         print("\n")
         if losses.avg < self.min_loss:
             self.early_stop_count = 0
             self.min_loss = losses.avg
-            torch.save(self.model,self.output_path+"/model.epoch%d"%epoch)
+            saved_dict = {
+                'model': self.model.state_dict(),
+                'epoch': epoch,
+                'optimizer': self.optimizer,
+                'cv_loss': self.min_loss,
+                "early_stop_count": self.early_stop_count
+            }
+            torch.save(saved_dict,self.output_path+"/final.mdl")
             print("Saved new model")
         else:
             self.early_stop_count += 1

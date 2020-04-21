@@ -19,7 +19,7 @@ def loss_chimera_msa(output, label):
     [one_hot_label, mag_mix, mag_s1, mag_s2] = label
 
     # compute the loss of embedding part
-    loss_embedding = loss_dc([embedding], [one_hot_label])
+    loss_embedding = loss_dc([embedding, mag_mix], [one_hot_label])
 
     #compute the loss of mask part
     loss_mask1 = norm_1d(mask_A*mag_mix - mag_s1)\
@@ -48,7 +48,7 @@ def loss_chimera_psa(output, label):
     [one_hot_label, mag_mix, mag_s1, mag_s2, cos_s1, cos_s2] = label
 
     # compute the loss of embedding part
-    loss_embedding = loss_dc([embedding], [one_hot_label])
+    loss_embedding = loss_dc([embedding, mag_mix], [one_hot_label])
     #compute the loss of mask part
     loss_mask1 = norm_1d(mask_A*mag_mix - torch.min(mag_mix,F.relu(mag_s1*cos_s1)))\
                + norm_1d(mask_B*mag_mix - torch.min(mag_mix,F.relu(mag_s2*cos_s2)))

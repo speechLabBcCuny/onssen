@@ -14,30 +14,28 @@ def loss_dc(output, label):
         loss of deep clustering model/layer
     """
     assert len(output)==1, "Number of output must be 1 for Deep Clustering"
-    assert len(label)==1, "Number of label must be 1 for Deep Clustering"
-    embedding = output[0]
-    label = label[0].float()
-    batch_size, time_size, frequency_size,one_hot_dim = label.size()
+    assert len(label)==2, "Number of label must be 2 for Deep Clustering"
+    embedding, = output
+    label, mag_mix = label
+    label = label.float()
+    batch_size, frame_dim, frequency_dim, one_hot_dim = label.size()
     _, _, _, embedding_dim = embedding.size()
 
-    embedding = embedding.view(-1, embedding_dim)
-    label = label.view(-1, one_hot_dim)
+    embedding = embedding.view(batch_size, -1, embedding_dim)
+    mag_mix = mag_mix.detach().view(batch_size, -1)
+    label = label.view(batch_size, -1, one_hot_dim)
 
     # remove the loss of silence TF regions
-    silence_mask = torch.sum(label, dim=-1, keepdim=True)
+    silence_mask = label.sum(2, keepdim=True)
     embedding = silence_mask * embedding
 
-    # referred as weight VA
-    class_weights = F.normalize(torch.sum(label, dim=-2),
-                                            p=1, dim=-1).unsqueeze(0)
-    class_weights = 1.0 / (torch.sqrt(class_weights) + 1e-7)
-    weights = torch.mm(label, class_weights.transpose(1, 0))
-    label = label * weights.repeat(1, label.size()[-1])
-    embedding = embedding * weights.repeat(1, embedding.size()[-1])
+    # referred as weight WR
+    # W_i = |x_i| / \sigma_j{|x_j|}
+    weights = torch.sqrt(mag_mix / mag_mix.sum(1, keepdim=True))
+    label = label * weights.view(batch_size, frame_dim*frequency_dim, 1)
+    embedding = embedding * weights.view(batch_size, frame_dim*frequency_dim, 1)
 
     # do batch affinity matrix computation
-    embedding = embedding.view(batch_size,-1,embedding_dim)
-    label = label.view(batch_size,-1,one_hot_dim)
     loss_est = norm(torch.bmm(T(embedding), embedding))
     loss_est_true = 2*norm(torch.bmm(T(embedding), label))
     loss_true = norm(torch.bmm(T(label), label))

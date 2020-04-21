@@ -21,10 +21,16 @@ import torch
 
 
 def wsj0_2mix_dataloader(model_name, feature_options, partition, cuda_option, cuda_device=None):
+    if partition == "tr" or partition == "cv":
         return DataLoader(
             wsj0_2mix_dataset(model_name, feature_options, partition, cuda_option, cuda_device=cuda_device),
             batch_size=feature_options.batch_size,
             shuffle=True,
+        )
+    elif partition == "tt":
+        return DataLoader(
+            wsj0_2mix_eval_dataset(model_name, feature_options, partition, cuda_option, cuda_device=cuda_device),
+            batch_size=1,
         )
 
 
@@ -109,6 +115,78 @@ class wsj0_2mix_dataset(Dataset):
             phase_s1 = get_phase(stft_s1)
             phase_s2 = get_phase(stft_s2)
             input, label = [feature_mix, phase_mix], [one_hot_label, mag_mix, mag_s1, mag_s2, phase_s1, phase_s2]
+
+        if self.cuda_option == "True":
+            input = [torch.tensor(ele).to(self.cuda_device) for ele in input]
+            label = [torch.tensor(ele).to(self.cuda_device) for ele in label]
+
+        return input, label
+
+
+    def __getitem__(self, index):
+        file_name_mix = self.file_list[index]
+        return self.get_feature(file_name_mix)
+
+
+    def __len__(self):
+        return len(self.file_list)
+
+
+class wsj0_2mix_eval_dataset(Dataset):
+    def __init__(self, model_name, feature_options, partition, cuda_option, cuda_device=None):
+        """
+        The arguments:
+            feature_options: a dictionary containing the feature params
+            partition: can be "tr", "cv"
+            model_name: can be "dc", "chimera", "chimera++", "phase"
+            e.g.
+            "feature_options": {
+                "data_path": "/home/data/wsj0-2mix",
+                "batch_size": 16,
+                "frame_length": 400,
+                "sampling_rate": 8000,
+                "window_size": 256,
+                "hop_size": 64,
+                "db_threshold": 40
+            }
+        The returns:
+            input: a tuple which follows the requirement of the loss
+            label: a tuple which follows the requirement of the loss
+            e.g.
+            for dc loss:
+                input: (feature_mix)
+                label: (one_hot_label)
+            for chimera loss:
+                input: (feature_mix)
+                label: (one_hot_label, mag_mix, mag_s1, mag_s2)
+        """
+        self.sampling_rate = feature_options.sampling_rate
+        self.window_size = feature_options.window_size
+        self.hop_size = feature_options.hop_size
+        self.frame_length = feature_options.frame_length
+        self.db_threshold = feature_options.db_threshold
+        self.model_name = model_name
+        self.cuda_option = cuda_option
+        self.cuda_device = cuda_device
+        self.file_list = []
+        full_path = feature_options.data_path+'/wav8k/min/'+partition+'/mix/*.wav'
+        self.file_list = glob.glob(full_path)
+
+    def get_ref_sig(fn):
+        sig_s1, rate = librosa.load(fn.replace('tt/mix/','tt/s1/'), sr=None)
+        sig_s2, rate = librosa.load(fn.replace('tt/mix/','tt/s1/'), sr=None)
+        sig_ref = np.array([sig_s1, sig_s2])
+        return sig_ref
+
+
+    def get_feature(self,fn):
+        stft_mix = get_stft(fn, self.sampling_rate, self.window_size, self.hop_size)
+        stft_r_mix = np.real(stft_mix)
+        stft_i_mix = np.imag(stft_mix)
+        feature_mix = get_log_magnitude(stft_mix)
+        sig_ref = get_ref_sig(fn)
+
+        input, label = [feature_mix], [stft_r_mix, stft_i_mix, sig_ref]
 
         if self.cuda_option == "True":
             input = [torch.tensor(ele).to(self.cuda_device) for ele in input]

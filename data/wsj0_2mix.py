@@ -172,9 +172,9 @@ class wsj0_2mix_eval_dataset(Dataset):
         full_path = feature_options.data_path+'/wav8k/min/'+partition+'/mix/*.wav'
         self.file_list = glob.glob(full_path)
 
-    def get_ref_sig(fn):
+    def get_ref_sig(self, fn):
         sig_s1, rate = librosa.load(fn.replace('tt/mix/','tt/s1/'), sr=None)
-        sig_s2, rate = librosa.load(fn.replace('tt/mix/','tt/s1/'), sr=None)
+        sig_s2, rate = librosa.load(fn.replace('tt/mix/','tt/s2/'), sr=None)
         sig_ref = np.array([sig_s1, sig_s2])
         return sig_ref
 
@@ -184,7 +184,7 @@ class wsj0_2mix_eval_dataset(Dataset):
         stft_r_mix = np.real(stft_mix)
         stft_i_mix = np.imag(stft_mix)
         feature_mix = get_log_magnitude(stft_mix)
-        sig_ref = get_ref_sig(fn)
+        sig_ref = self.get_ref_sig(fn)
 
         input, label = [feature_mix], [stft_r_mix, stft_i_mix, sig_ref]
 

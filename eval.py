@@ -1,8 +1,8 @@
 from attrdict import AttrDict
 from utils import AverageMeter
 from sklearn.cluster import KMeans
-import evaluate.sdr.batch_SDR_torch as batch_SDR_torch
-
+import evaluate, librosa
+import argparse, data, json, nn, numpy as np, os, time, torch
 
 def get_free_gpu():
     os.system('nvidia-smi -q -d Memory |grep -A4 GPU|grep Free >tmp')
@@ -69,14 +69,15 @@ class tester:
         batch, frame, frequency = feature_mix.shape
         batch, num_spk, nsample = sig_ref.shape
         feature_mix = feature_mix.reshape(frame, frequency)
+        embedding = embedding.reshape(frame, frequency, -1)
         m = np.max(feature_mix) - 40/20
         emb = embedding[feature_mix>=m,:]
         label = KMeans(n_clusters=num_spk, random_state=0).fit_predict(emb)
-        mask = np.zeros(2, feature.shape)
+        mask = np.zeros((num_spk, frame, frequency))
         mask[0, feature_mix>=m] = label
         mask[1, feature_mix>=m] = 1-label
         stft_est = stft_mix * mask
-        sig_est = np.zeros(batch, num_spk, nsample)
+        sig_est = np.zeros((batch, num_spk, nsample))
         for i in range(num_spk):
             sig_est[0, i] = librosa.core.istft(stft_est[i].T, hop_length=64, length=nsample)
         sig_est = torch.tensor(sig_est).to(self.device)
@@ -93,9 +94,9 @@ class tester:
             embedding, = output
             stft_r_mix, stft_i_mix, sig_ref = label
             sig_est = self.get_est_sig([feature_mix, embedding, stft_r_mix, stft_i_mix, sig_ref])
-            sdr = batch_SDR_torch(sig_est, sig_ref)
+            sdr = evaluate.batch_SDR_torch(sig_est, sig_ref)
             sdrs.update(sdr)
-            print("SDR: %.2f\r"%(sdrs.avg))
+            print("SDR: %.2f"%(sdrs.avg), end='\r')
 
 
 

@@ -117,7 +117,8 @@ class trainer:
         times.reset()
         self.model.train()
         len_d = len(self.train_loader)
-        end = time.time()
+        init_time = time.time()
+        end = init_time
         for i, data in enumerate(self.train_loader):
             input, label = data
             output = self.model(input)
@@ -130,7 +131,7 @@ class trainer:
             self.optimizer.step()
             times.update(time.time()-end)
             end = time.time()
-            print('epoch %d, %d/%d, training loss: %f, time estimated: %.2f seconds'%(epoch, i+1,len_d,losses.avg, times.avg*len_d), end='\r')
+            print('epoch %d, %d/%d, training loss: %f, time estimated: %.2f/%.2f seconds'%(epoch, i+1,len_d,losses.avg, end-init_time, times.avg*len_d), end='\r')
         print("\n")
 
 
@@ -141,7 +142,8 @@ class trainer:
         losses.reset()
         times.reset()
         len_d = len(self.valid_loader)
-        end = time.time()
+        init_time = time.time()
+        end = init_time
         for i, data in enumerate(self.valid_loader):
             begin = time.time()
             input, label = data
@@ -153,13 +155,13 @@ class trainer:
             losses.update(loss_avg.item())
             times.update(time.time()-end)
             end = time.time()
-            print('epoch %d, %d/%d, validation loss: %f, time estimated: %.2f seconds'%(epoch, i+1,len_d,losses.avg, times.avg*len_d), end='\r')
+            print('epoch %d, %d/%d, validation loss: %f, time estimated: %.2f/%.2f seconds'%(epoch, i+1,len_d,losses.avg, end-init_time, times.avg*len_d), end='\r')
         print("\n")
         if losses.avg < self.min_loss:
             self.early_stop_count = 0
             self.min_loss = losses.avg
             saved_dict = {
-                'model': self.model,
+                'model': self.model.state_dict(),
                 'epoch': epoch,
                 'optimizer': self.optimizer,
                 'cv_loss': self.min_loss,

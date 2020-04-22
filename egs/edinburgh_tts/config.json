@@ -1,0 +1,29 @@
+{
+  "model_name": "chimera++",
+  "dataset": "edinburgh_tts",
+  "feature_options": {
+    "data_path": "/home/data/Edinburgh_TTS/",
+    "batch_size": 16,
+    "frame_length": 400,
+    "sampling_rate": 16000,
+    "window_size": 1024,
+    "hop_size": 256,
+    "db_threshold": 40
+  },
+  "optimizer_options": {
+    "name": "adam",
+    "lr": 0.001
+  },
+  "model_options": {
+    "input_dim": 513,
+    "hidden_dim": 600,
+    "embedding_dim": 40,
+    "num_layers": 3,
+    "dropout": 0.3
+  },
+  "device": "cpu",
+  "num_speaker": 2,
+  "num_epoch": 200,
+  "resume_from_checkpoint": "False",
+  "checkpoint_path": "./checkpoint/"
+}

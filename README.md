@@ -42,8 +42,9 @@ Requirements
 Usage
 ------
 You can simply use the existing config JSON file or customize your config file to train the enhancement or separation model.
+under the egs/wsj0-2mix/deep_clustering/ directory:
 ```
-python train.py -c configs/dc_config.json
+python run.py -c config.json
 ```
 
 

@@ -5,26 +5,27 @@ from .chimera import chimera
 
 
 class phase_net(nn.Module):
-    def __init__(self, model_options):
+    def __init__(
+        self, 
+        input_dim,
+        hidden_dim=300,
+        num_layers=3,
+        embedding_dim=20,
+        dropout=0.3,
+        num_speaker=2,
+    ):
         super(phase_net, self).__init__()
-        self.input_dim = model_options.input_dim
-        self.output_dim = model_options.output_dim if "output_dim" in model_options else self.input_dim
-        self.hidden_dim = model_options.hidden_dim if "hidden_dim" in model_options else 300
-        self.num_layers = model_options.num_layers if "num_layers" in model_options else 3
-        self.embedding_dim = model_options.embedding_dim if "embedding_dim" in model_options else 20
-        self.dropout = model_options.dropout if "dropout" in model_options else 0.3
-        self.num_speaker = model_options.num_speaker if "num_speaker" in model_options else 2
-        chimera_net = chimera(model_options)
+        chimera_net = chimera(input_dim, hidden_dim, num_layers, embedding_dim, dropout, num_speaker)
         rnn = nn.LSTM(
-            self.input_dim*3,
-            self.hidden_dim,
-            self.num_layers,
-            dropout=self.dropout,
+            input_dim*3,
+            hidden_dim,
+            num_layers,
+            dropout=dropout,
             bidirectional=True,
             batch_first = True
         )
-        bn = nn.BatchNorm1d(self.hidden_dim*2)
-        fc_phase = nn.Linear(self.hidden_dim*2, self.num_speaker*self.output_dim)
+        bn = nn.BatchNorm1d(hidden_dim*2)
+        fc_phase = nn.Linear(hidden_dim*2, num_speaker*output_dim)
         self.add_module('rnn', rnn)
         self.add_module('bn', bn)
         self.add_module('fc_phase', fc_phase)
@@ -42,23 +43,23 @@ class phase_net(nn.Module):
         assert len(input) == 2, "There must be 2 tensors in the input for phase network"
         [x_mag, x_phase] = input
         [embedding, mask_A, mask_B] = self.chimera([x_mag])
-        batch_size, frame_size, frequency_size = mask_A.size()
+        batch_size, frame, frequency = mask_A.size()
         mag_A = x_mag * mask_A
         mag_B = x_mag * mask_B
-        input_A = torch.cat((mag_A, x_phase.view(batch_size, frame_size,-1)), 2)
+        input_A = torch.cat((mag_A, x_phase.view(batch_size, frame,-1)), 2)
         rnn_output_A, _ = self.rnn(input_A)
         rnn_output_A = rnn_output_A.permute(0, 2, 1)
         rnn_output_A = self.bn(rnn_output_A)
         rnn_output_A = rnn_output_A.permute(0, 2, 1)
         phase_A  = self.fc_phase(rnn_output_A)
-        phase_A = phase_A.reshape(batch_size, frame_size, frequency_size, -1)
-        input_B = torch.cat((mag_B, x_phase.view(batch_size, frame_size,-1)), 2)
+        phase_A = phase_A.reshape(batch_size, frame, frequency, -1)
+        input_B = torch.cat((mag_B, x_phase.view(batch_size, frame,-1)), 2)
         rnn_output_B, hidden = self.rnn(input_B)
         rnn_output_B = rnn_output_B.permute(0, 2, 1)
         rnn_output_B = self.bn(rnn_output_B)
         rnn_output_B = rnn_output_B.permute(0, 2, 1)
         phase_B = self.fc_phase(rnn_output_B)
-        phase_B = phase_B.reshape(batch_size, frame_size, frequency_size, -1)
+        phase_B = phase_B.reshape(batch_size, frame, frequency, -1)
         phase_A = phase_A + x_phase
         phase_B = phase_B + x_phase
         phase_A = F.normalize(phase_A, p=2, dim=-1)

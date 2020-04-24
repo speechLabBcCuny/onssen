@@ -27,16 +27,16 @@ We have 20 speakers, each will contains N X 400 X 513 tensors
 
 """
 
-def daps_enhance_dataloader(num_batch, feature_options, partition, cuda_option, cuda_device=None):
+def daps_enhance_dataloader(num_batch, feature_options, partition, device=None):
         return DataLoader(
-            daps_dataset(num_batch, feature_options, partition, cuda_option, cuda_device=cuda_device),
+            daps_dataset(num_batch, feature_options, partition, device=device),
             batch_size=feature_options.batch_size,
             shuffle=True,
         )
 
 
 class daps_dataset(Dataset):
-    def __init__(self, num_batch, feature_options, partition, cuda_option, cuda_device=None):
+    def __init__(self, num_batch, feature_options, partition, device=None):
         """
         The arguments:
             feature_options: a dictionary containing the feature params
@@ -69,13 +69,15 @@ class daps_dataset(Dataset):
         self.frame_length = feature_options.frame_length
         self.num_batch = num_batch
         self.batch_size = feature_options.batch_size
-        self.cuda_option = cuda_option
-        self.cuda_device = cuda_device
         self.file_list = []
         self.base_path = feature_options.data_path
         self.partition = partition
         self.length_remaining = 0
         self.get_item_list()
+        if device is None:
+            self.device = torch.device('cpu')
+        else:
+            self.device = device
 
 
     def get_item_list(self):
@@ -104,9 +106,9 @@ class daps_dataset(Dataset):
             cos_diff = get_cos_difference(stft_noisy, stft_clean)
             input, label = [feature, mag_noisy], [mag_clean, cos_diff]
 
-            if self.cuda_option == "True":
-                input = [torch.tensor(ele).to(self.cuda_device) for ele in input]
-                label = [torch.tensor(ele).to(self.cuda_device) for ele in label]
+            input = [torch.tensor(ele).to(self.device) for ele in input]
+            label = [torch.tensor(ele).to(self.device) for ele in label]
+
             self.input = input
             self.label = label
             return self.cutoff_feature()

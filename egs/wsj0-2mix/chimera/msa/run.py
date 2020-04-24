@@ -1,7 +1,11 @@
 from onssen import data, loss, nn, utils
 from attrdict import AttrDict
+import argparse
 import torch
 import json
+import onssen
+import sys
+sys.path.append('/home/near/onssen/')
 
 
 def main():

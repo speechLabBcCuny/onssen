@@ -7,16 +7,16 @@ import random
 import torch
 
 
-def edinburgh_tts_dataloader(model_name, feature_options, partition, cuda_option, cuda_device=None):
+def edinburgh_tts_dataloader(model_name, feature_options, partition, device=None):
         return DataLoader(
-            edinburgh_tts_dataset(model_name, feature_options, partition, cuda_option, cuda_device=cuda_device),
+            edinburgh_tts_dataset(model_name, feature_options, partition, device=device),
             batch_size=feature_options.batch_size,
             shuffle=True,
         )
 
 
 class edinburgh_tts_dataset(Dataset):
-    def __init__(self, model_name, feature_options, partition, cuda_option, cuda_device=None):
+    def __init__(self, model_name, feature_options, partition, device=None):
         """
         The arguments:
             feature_options: a dictionary containing the feature params
@@ -49,12 +49,14 @@ class edinburgh_tts_dataset(Dataset):
         self.frame_length = feature_options.frame_length
         self.db_threshold = feature_options.db_threshold
         self.model_name = model_name
-        self.cuda_option = cuda_option
-        self.cuda_device = cuda_device
         self.data_path = feature_options.data_path
         self.partition = partition
         self.file_list = []
         self.get_file_list()
+        if device is None:
+            self.device = torch.device('cpu')
+        else:
+            self.device = device
 
     def get_file_list(self):
         with open(self.data_path+'/'+self.partition,'r') as f:
@@ -103,9 +105,8 @@ class edinburgh_tts_dataset(Dataset):
             phase_s2 = get_phase(stft_s2)
             input, label = [feature_mix, phase_mix], [one_hot_label, mag_mix, mag_s1, mag_s2, phase_s1, phase_s2]
 
-        if self.cuda_option == "True":
-            input = [torch.tensor(ele).to(self.cuda_device) for ele in input]
-            label = [torch.tensor(ele).to(self.cuda_device) for ele in label]
+        input = [torch.tensor(ele).to(self.device) for ele in input]
+        label = [torch.tensor(ele).to(self.device) for ele in label]
 
         return input, label
 

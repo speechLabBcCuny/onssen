@@ -7,7 +7,7 @@ import json
 def main():
     parser = argparse.ArgumentParser(description='Parse the config path')
     parser.add_argument("-c", "--config", dest="path",
-                        help='The path to the config file. e.g. python run.py --config dc_config.json')
+                        help='The path to the config file. e.g. python run.py --config onfig.json')
 
     config = parser.parse_args()
     with open(config.path) as f:

@@ -1,5 +1,9 @@
+import sys
+sys.path.append('/home/near/onssen/')
+
 from onssen import data, loss, nn, utils
 from attrdict import AttrDict
+import argparse
 import torch
 import json
 
@@ -14,16 +18,16 @@ def main():
         args = json.load(f)
         args = AttrDict(args)
     device = torch.device(args.device)
-    args.model = onssen.nn.chimera(**(args['model_options']))
+    args.model = nn.chimera(**(args['model_options']))
     args.model.to(device)
     args.train_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tr', device)
     args.valid_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'cv', device)
     args.optimizer = utils.build_optimizer(args.model.parameters(), args.optimizer_options)
     args.loss_fn = loss.loss_chimera_psa
-    trainer = onssen.utils.trainer(args)
+    trainer = utils.trainer(args)
     trainer.run()
     
-    tester = onssen.utils.tester(args)
+    tester = utils.tester(args)
     tester.eval()
 
 

@@ -1,5 +1,10 @@
+import sys
+sys.path.append('/home/near/onssen/')
+
 from onssen import data, loss, nn, utils
+from .evaluate impport tester
 from attrdict import AttrDict
+import argparse
 import torch
 import json
 
@@ -20,10 +25,10 @@ def main():
     args.valid_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'cv', device)
     args.optimizer = utils.build_optimizer(args.model.parameters(), args.optimizer_options)
     args.loss_fn = loss.loss_dc
-    trainer = onssen.utils.trainer(args)
+    trainer = utils.trainer(args)
     trainer.run()
 
-    tester = onssen.utils.tester(args)
+    tester = tester(args)
     tester.eval()
 
 

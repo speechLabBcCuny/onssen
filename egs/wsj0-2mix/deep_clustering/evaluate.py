@@ -1,10 +1,14 @@
 import sys
 sys.path.append('/home/near/onssen/')
 from onssen import utils
+from sklearn.cluster import KMeans
+import librosa
+import numpy as np
+import torch
 
 
-class evaluate(utils.tester):
-	def get_est_sig(self, args):
+class tester_dc(utils.tester):
+    def get_est_sig(self, input, label, output):
         """
         args:
             feature_mix: batch x frame x frequency

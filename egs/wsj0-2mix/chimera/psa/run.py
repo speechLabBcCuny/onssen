@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/home/near/onssen/')
+sys.path.append('../../../../../onssen/')
 
 from onssen import data, loss, nn, utils
 from attrdict import AttrDict

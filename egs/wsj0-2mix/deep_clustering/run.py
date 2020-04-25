@@ -1,8 +1,9 @@
+
 import sys
-sys.path.append('/home/near/onssen/')
+sys.path.append('../../../../onssen/')
 
 from onssen import data, loss, nn, utils
-from .evaluate impport tester
+from evaluate import tester_dc
 from attrdict import AttrDict
 import argparse
 import torch
@@ -23,12 +24,13 @@ def main():
     args.model.to(device)
     args.train_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tr', device)
     args.valid_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'cv', device)
+    args.test_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tt', device)
     args.optimizer = utils.build_optimizer(args.model.parameters(), args.optimizer_options)
     args.loss_fn = loss.loss_dc
     trainer = utils.trainer(args)
     trainer.run()
 
-    tester = tester(args)
+    tester = tester_dc(args)
     tester.eval()
 
 

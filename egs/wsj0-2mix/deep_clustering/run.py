@@ -19,7 +19,7 @@ def main():
         args = json.load(f)
         args = AttrDict(args)
     device = torch.device(args.device)
-    args.model = onssen.nn.deep_clustering(**(args['model_options']))
+    args.model = nn.deep_clustering(**(args['model_options']))
     args.model.to(device)
     args.train_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tr', device)
     args.valid_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'cv', device)

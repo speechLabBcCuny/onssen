@@ -21,6 +21,8 @@ class evaluate(utils.tester):
 
         stft_r_mix = stft_r_mix.detach().cpu().numpy()
         stft_i_mix = stft_i_mix.detach().cpu().numpy()
+        embedding = embedding.detach().cpu().numpy()
+        feature_mix = feature_mix.detach().cpu().numpy()
         
         stft_mix = stft_r_mix + 1j * stft_i_mix
         batch, frame, frequency = feature_mix.shape

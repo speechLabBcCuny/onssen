@@ -46,7 +46,7 @@ class trainer:
     def resume_from_checkpoint(self, checkpoint_path):
         saved_dict = torch.load(checkpoint_path+'/final.mdl')
         self.model = saved_dict["model"]
-        self.model.to(self.device)
+        self.model = self.model.to(self.device)
         self.epoch = saved_dict["epoch"]
         self.min_loss = saved_dict["cv_loss"]
         self.early_stop_count = saved_dict["early_stop_count"]

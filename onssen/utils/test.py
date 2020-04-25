@@ -14,9 +14,12 @@ class tester:
         """
         self.model_name = args.model_name
         self.test_loader = args.test_loader
-
+        self.device = args.device
+        
         # build model
-        self.model = args.model
+        saved_dict = torch.load(args.checkpoint_path+'/final.mdl')
+        self.model = saved_dict["model"]
+        self.model = self.model.to(self.device)
         print("Loaded the model...")
 
     def get_est_sig(self, input, label, output):

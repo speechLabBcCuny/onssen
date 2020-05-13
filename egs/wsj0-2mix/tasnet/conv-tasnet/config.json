@@ -1,9 +1,10 @@
 {
-  "model_name": "convtasnet",
+  "model_name": "conv-tasnet",
   "feature_options": {
-    "data_path": "/home/data/wsj0-2mix/",
-    "batch_size": 16,
-    "e2e": "True"
+    "data_path": "/home/data/wsj0-mix/2speakers/",
+    "batch_size": 3,
+    "sampling_rate": 8000,
+    "chunk_size": 32000
   },
   "optimizer_options": {
     "name": "adam",
@@ -20,10 +21,9 @@
     "norm": "gln",
     "num_spks": 2,
     "activate": "sigmoid",
-    "causal": false,
-    "skip_con": false
+    "causal": false
   },
-  "device": "cpu",
+  "device": "cuda:1",
   "num_epoch": 200,
   "resume_from_checkpoint": "False",
   "checkpoint_path": "./checkpoint/"

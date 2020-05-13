@@ -1,7 +1,7 @@
 {
   "model_name": "dc",
   "feature_options": {
-    "data_path": "/home/data/wsj0-2mix/",
+    "data_path": "/home/data/wsj0-mix/2speakers/",
     "batch_size": 16,
     "frame_length": 400,
     "sampling_rate": 8000,

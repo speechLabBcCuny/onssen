@@ -22,6 +22,10 @@ class trainer:
              self.resume_from_checkpoint = False
 
         self.device = args.device
+        if "cv_device" not in args:
+            self.cv_device = self.device
+        else:
+            self.cv_device = args.cv_device
         self.model_name = args.model_name
         self.train_loader = args.train_loader
         self.valid_loader = args.valid_loader
@@ -37,7 +41,6 @@ class trainer:
             self.min_loss = float("inf")
             self.early_stop_count = 0
         print("Loaded the model...")
-
         self.num_epoch = args.num_epoch
         self.checkpoint_path = args.checkpoint_path
         if not os.path.exists(self.checkpoint_path):
@@ -55,7 +58,7 @@ class trainer:
         for epoch in range(self.epoch, self.num_epoch):
             self.train(epoch)
             self.validate(epoch)
-            if self.early_stop_count == 5:
+            if self.early_stop_count == 8:
                 print("Model stops improving, stop the training")
                 break
         print("Model training is finished.")
@@ -65,7 +68,7 @@ class trainer:
         times = AverageMeter()
         losses.reset()
         times.reset()
-        self.model.train()
+        self.model = self.model.train()
         len_d = len(self.train_loader)
         init_time = time.time()
         end = init_time
@@ -77,7 +80,7 @@ class trainer:
             losses.update(loss_avg.item())
             self.optimizer.zero_grad()
             loss_avg.backward()
-            # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
             self.optimizer.step()
             times.update(time.time()-end)
             end = time.time()
@@ -85,7 +88,7 @@ class trainer:
         print("\n")
 
     def validate(self, epoch):
-        self.model.eval()
+        self.model = self.model.eval()
         losses = AverageMeter()
         times = AverageMeter()
         losses.reset()
@@ -93,16 +96,17 @@ class trainer:
         len_d = len(self.valid_loader)
         init_time = time.time()
         end = init_time
-        for i, data in enumerate(self.valid_loader):
-            begin = time.time()
-            input, label = data
-            output = self.model(input)
-            loss = self.loss_fn(output, label)
-            loss_avg = torch.mean(loss)
-            losses.update(loss_avg.item())
-            times.update(time.time()-end)
-            end = time.time()
-            print('epoch %d, %d/%d, validation loss: %f, time estimated: %.2f/%.2f seconds'%(epoch, i+1,len_d,losses.avg, end-init_time, times.avg*len_d), end='\r')
+        with torch.no_grad():
+            for i, data in enumerate(self.valid_loader):
+                begin = time.time()
+                input, label = data
+                output = self.model(input)
+                loss = self.loss_fn(output, label)
+                loss_avg = torch.mean(loss)
+                losses.update(loss_avg.item())
+                times.update(time.time()-end)
+                end = time.time()
+                print('epoch %d, %d/%d, validation loss: %f, time estimated: %.2f/%.2f seconds'%(epoch, i+1,len_d,losses.avg, end-init_time, times.avg*len_d), end='\r')
         print("\n")
         if losses.avg < self.min_loss:
             self.early_stop_count = 0

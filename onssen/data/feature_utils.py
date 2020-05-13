@@ -43,13 +43,11 @@ def get_log_mel_spectrogram(fn, sampling_rate, window_size, hop_size, epsilon=1e
         hop_length=hop_size
     )
     mel_spectra = np.transpose(np.log10(mel_spectra + epsilon))
-    mel_spectra = librosa.util.normalize(mel_spectra, axis=1)
     return mel_spectra
 
 
 def get_log_magnitude(stft, epsilon=1e-7):
     feature = np.log10(np.abs(stft) + epsilon)
-    feature = librosa.util.normalize(feature, axis=1)
     return feature
 
 

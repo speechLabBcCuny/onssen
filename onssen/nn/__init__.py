@@ -8,8 +8,8 @@ from .chimera import chimera
 from .deep_clustering import deep_clustering
 from .enhancement import enhance
 from .phase_network import phase_net
-from .tasnet import convtasnet
+from .tasnet import ConvTasNet
 
 __all__ = [
-    'chimera', 'deep_clustering', 'enhance', 'phase_net', 'convtasnet'
+    'chimera', 'deep_clustering', 'enhance', 'phase_net', 'ConvTasNet'
 ]

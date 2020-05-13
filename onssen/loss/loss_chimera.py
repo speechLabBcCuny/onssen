@@ -26,7 +26,7 @@ def loss_chimera_msa(output, label):
                + norm_1d(mask_B*mag_mix - mag_s2)
     loss_mask2 = norm_1d(mask_B*mag_mix - mag_s1)\
                + norm_1d(mask_A*mag_mix - mag_s2)
-    loss_mask = torch.min(loss_mask1, loss_mask2) / (frame * frequency)
+    loss_mask = torch.min(loss_mask1, loss_mask2)
 
     return loss_embedding*0.975 + loss_mask*0.025
 
@@ -54,6 +54,6 @@ def loss_chimera_psa(output, label):
                + norm_1d(mask_B*mag_mix - torch.min(mag_mix,F.relu(mag_s2*cos_s2)))
     loss_mask2 = norm_1d(mask_B*mag_mix - torch.min(mag_mix,F.relu(mag_s1*cos_s1)))\
                + norm_1d(mask_A*mag_mix - torch.min(mag_mix,F.relu(mag_s2*cos_s2)))
-    loss_mask = torch.min(loss_mask1, loss_mask2) / (frame * frequency)
+    loss_mask = torch.min(loss_mask1, loss_mask2)
 
     return loss_embedding*0.975 + loss_mask*0.025

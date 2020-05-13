@@ -17,7 +17,10 @@ from torch.utils.data import DataLoader
 from .feature_utils import *
 import glob
 import numpy as np
+import random
 import torch
+import torchaudio
+import torch.nn.functional as F
 
 
 def wsj0_2mix_dataloader(model_name, feature_options, partition, device=None):
@@ -62,12 +65,15 @@ class wsj0_2mix_dataset(Dataset):
                 input: (feature_mix)
                 label: (one_hot_label, mag_mix, mag_s1, mag_s2)
         """
-        self.sampling_rate = feature_options.sampling_rate
-        self.window_size = feature_options.window_size
-        self.hop_size = feature_options.hop_size
-        self.frame_length = feature_options.frame_length
-        self.db_threshold = feature_options.db_threshold
         self.model_name = model_name
+        self.sampling_rate = feature_options.sampling_rate
+        if self.model_name in ["lstm-tasnet", "conv-tasnet"]:
+            self.chunk_size = feature_options.chunk_size
+        else:
+            self.window_size = feature_options.window_size
+            self.hop_size = feature_options.hop_size
+            self.frame_length = feature_options.frame_length
+            self.db_threshold = feature_options.db_threshold
         self.file_list = []
         full_path = feature_options.data_path+'/wav8k/min/'+partition+'/mix/*.wav'
         self.file_list = glob.glob(full_path)
@@ -77,7 +83,34 @@ class wsj0_2mix_dataset(Dataset):
             self.device = device
 
 
+    def get_tr_sigs(self, fn, sr):
+        sig, rate = torchaudio.load(fn)
+        assert(rate==sr)
+        sig_s1, rate = torchaudio.load(fn.replace('/mix','/s1'))
+        sig_s2, rate = torchaudio.load(fn.replace('/mix','/s2'))
+        if sig.shape[1] < self.chunk_size:
+            gap = self.chunk_size- sig.shape[1]
+            sig = F.pad(sig, (0, gap), mode='constant')
+            sig_s1 = F.pad(sig_s1, (0, gap), mode='constant')
+            sig_s2 = F.pad(sig_s2, (0, gap), mode='constant')
+        else:
+            random_start = random.randint(0, sig.shape[1]-self.chunk_size)
+            sig = sig[:, random_start:self.chunk_size+random_start]
+            sig_s1 = sig_s1[:, random_start:self.chunk_size+random_start]
+            sig_s2 = sig_s2[:, random_start:self.chunk_size+random_start]
+        return sig, sig_s1, sig_s2
+
     def get_feature(self,fn):
+        if self.model_name in ["lstm-tasnet", "conv-tasnet"]:
+            sig_mix, sig_s1, sig_s2 = self.get_tr_sigs(fn, self.sampling_rate)
+            sig_mix = sig_mix.reshape(-1,)
+            sig_s1 = sig_s1.reshape(-1,)
+            sig_s2 = sig_s2.reshape(-1,)
+            input, label = [sig_mix], [sig_s1, sig_s2]
+            input = [ele.to(self.device) for ele in input]
+            label = [ele.to(self.device) for ele in label]
+            return input, label
+
         stft_mix = get_stft(fn, self.sampling_rate, self.window_size, self.hop_size)
         stft_s1 = get_stft(fn.replace('/mix','/s1'), self.sampling_rate, self.window_size, self.hop_size)
         stft_s2 = get_stft(fn.replace('/mix','/s2'), self.sampling_rate, self.window_size, self.hop_size)
@@ -162,12 +195,15 @@ class wsj0_2mix_eval_dataset(Dataset):
                 input: (feature_mix)
                 label: (one_hot_label, mag_mix, mag_s1, mag_s2)
         """
-        self.sampling_rate = feature_options.sampling_rate
-        self.window_size = feature_options.window_size
-        self.hop_size = feature_options.hop_size
-        self.frame_length = feature_options.frame_length
-        self.db_threshold = feature_options.db_threshold
         self.model_name = model_name
+        self.sampling_rate = feature_options.sampling_rate
+        if self.model_name in ["lstm-tasnet", "conv-tasnet"]:
+            self.chunk_size = feature_options.chunk_size
+        else:
+            self.window_size = feature_options.window_size
+            self.hop_size = feature_options.hop_size
+            self.frame_length = feature_options.frame_length
+            self.db_threshold = feature_options.db_threshold
         self.file_list = []
         full_path = feature_options.data_path+'/wav8k/min/'+partition+'/mix/*.wav'
         self.file_list = glob.glob(full_path)
@@ -176,24 +212,35 @@ class wsj0_2mix_eval_dataset(Dataset):
         else:
             self.device = device
 
-    def get_ref_sig(self, fn):
-        sig_s1, rate = librosa.load(fn.replace('tt/mix/','tt/s1/'), sr=None)
-        sig_s2, rate = librosa.load(fn.replace('tt/mix/','tt/s2/'), sr=None)
-        sig_ref = np.array([sig_s1, sig_s2])
-        return sig_ref
+
+    def get_sigs(self, fn, sr):
+        sig_mix, rate = torchaudio.load(fn)
+        assert(rate==sr)
+        sig_s1, rate = torchaudio.load(fn.replace('tt/mix/','tt/s1/'))
+        sig_s2, rate = torchaudio.load(fn.replace('tt/mix/','tt/s2/'))
+        N = sig_mix.shape[1]
+        gap = 32- N % 32
+        sig_mix = F.pad(sig_mix, (0, gap), mode='constant')
+        sig_s1 = F.pad(sig_s1, (0, gap), mode='constant')
+        sig_s2 = F.pad(sig_s2, (0, gap), mode='constant')
+        sig_ref = torch.cat((sig_s1, sig_s2), dim=0)
+        sig_mix = sig_mix.reshape(-1,)
+        return sig_mix, sig_ref
 
 
     def get_feature(self,fn):
-        stft_mix = get_stft(fn, self.sampling_rate, self.window_size, self.hop_size)
-        stft_r_mix = np.real(stft_mix)
-        stft_i_mix = np.imag(stft_mix)
-        feature_mix = get_log_magnitude(stft_mix)
-        sig_ref = self.get_ref_sig(fn)
-
-        input, label = [feature_mix], [stft_r_mix, stft_i_mix, sig_ref]
-
-        input = [torch.tensor(ele).to(self.device) for ele in input]
-        label = [torch.tensor(ele).to(self.device) for ele in label]
+        if self.model_name in ["lstm-tasnet", "conv-tasnet"]:
+            sig_mix, sig_ref = self.get_sigs(fn, self.sampling_rate)
+            input, label = [sig_mix.to(self.device)], [sig_ref.to(self.device)]
+        else:
+            stft_mix = get_stft(fn, self.sampling_rate, self.window_size, self.hop_size)
+            stft_r_mix = np.real(stft_mix)
+            stft_i_mix = np.imag(stft_mix)
+            feature_mix = get_log_magnitude(stft_mix)
+            sig_ref = self.get_ref_sig(fn)
+            input, label = [feature_mix], [stft_r_mix, stft_i_mix, sig_ref]
+            input = [torch.tensor(ele).to(self.device) for ele in input]
+            label = [torch.tensor(ele).to(self.device) for ele in label]
 
         return input, label
 

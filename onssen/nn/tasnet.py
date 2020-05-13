@@ -1,4 +1,3 @@
-### forked from https://github.com/JusperLee/Deep-Encoder-Decoder-Conv-TasNet/blob/master/Conv-Tasnet-Deep-w-dilation.py
 import torch
 import torch.nn as nn
 
@@ -82,64 +81,6 @@ def select_norm(norm, dim):
         return nn.BatchNorm1d(dim)
 
 
-class Encoder(nn.Module):
-
-    def __init__(self, in_channels, out_channels, kernel_size, stride):
-        super(Encoder, self).__init__()
-        self.sequential = nn.Sequential(
-            Conv1D(in_channels, out_channels, kernel_size, stride=stride),
-            Conv1D(out_channels, out_channels, kernel_size=3, stride=1, dilation=1, padding=1),
-            nn.PReLU(),
-            Conv1D(out_channels, out_channels, kernel_size=3, stride=1, dilation=2, padding=2),
-            nn.PReLU(),
-            Conv1D(out_channels, out_channels, kernel_size=3, stride=1, dilation=4, padding=4),
-            nn.PReLU(),
-            Conv1D(out_channels, out_channels, kernel_size=3, stride=1, dilation=8, padding=8),
-            nn.PReLU()
-        )
-    def forward(self, x):
-        '''
-           x: [B, T]
-           out: [B, N, T]
-        '''
-        x = self.sequential(x)
-        return x
-
-class Decoder(nn.Module):
-    '''
-        Decoder
-        This module can be seen as the gradient of Conv1d with respect to its input. 
-        It is also known as a fractionally-strided convolution 
-        or a deconvolution (although it is not an actual deconvolution operation).
-    '''
-
-    def __init__(self, N, kernel_size=16, stride=16 // 2):
-        super(Decoder, self).__init__()
-        self.sequential = nn.Sequential(
-            nn.ConvTranspose1d(N, N, kernel_size=3, stride=1, dilation=8, padding=8),
-            nn.PReLU(),
-            nn.ConvTranspose1d(N, N, kernel_size=3, stride=1, dilation=4, padding=4),
-            nn.PReLU(),
-            nn.ConvTranspose1d(N, N, kernel_size=3, stride=1, dilation=2, padding=2),
-            nn.PReLU(),
-            nn.ConvTranspose1d(N, N, kernel_size=3, stride=1, dilation=1, padding=1),
-            nn.PReLU(),
-            nn.ConvTranspose1d(N, 1, kernel_size=kernel_size, stride=stride, bias=True)
-        )
-
-    def forward(self, x):
-        """
-        x: N x L or N x C x L
-        """
-        x = self.sequential(x)
-        if torch.squeeze(x).dim() == 1:
-            x = torch.squeeze(x, dim=1)
-        else:
-            x = torch.squeeze(x)
-
-        return x
-
-
 class Conv1D(nn.Conv1d):
     '''
        Applies a 1D convolution over an input signal composed of several input planes.
@@ -188,7 +129,7 @@ class Conv1D_Block(nn.Module):
     '''
 
     def __init__(self, in_channels=256, out_channels=512,
-                 kernel_size=3, dilation=1, norm='gln', causal=False, skip_con='True'):
+                 kernel_size=3, dilation=1, norm='gln', causal=False):
         super(Conv1D_Block, self).__init__()
         # conv 1 x 1
         self.conv1x1 = Conv1D(in_channels, out_channels, 1)
@@ -203,9 +144,7 @@ class Conv1D_Block(nn.Module):
         self.PReLU_2 = nn.PReLU()
         self.norm_2 = select_norm(norm, out_channels)
         self.Sc_conv = nn.Conv1d(out_channels, in_channels, 1, bias=True)
-        self.Output = nn.Conv1d(out_channels, in_channels, 1, bias=True)
         self.causal = causal
-        self.skip_con = skip_con
 
     def forward(self, x):
         # x: N x C x L
@@ -217,105 +156,53 @@ class Conv1D_Block(nn.Module):
         # causal: N x O_C x (L+pad)
         # noncausal: N x O_C x L
         c = self.dwconv(c)
-        c = self.PReLU_2(c)
-        c = self.norm_2(c)
         # N x O_C x L
         if self.causal:
             c = c[:, :, :-self.pad]
-        if self.skip_con:
-            Sc = self.Sc_conv(c)
-            c = self.Output(c)
-            return Sc, c+x
-        c = self.Output(c)
+        c = self.Sc_conv(c)
         return x+c
 
 
-class Separation(nn.Module):
-    '''
-       R    Number of repeats
-       X    Number of convolutional blocks in each repeat
-       B    Number of channels in bottleneck and the residual paths’ 1 × 1-conv blocks  
-       H    Number of channels in convolutional blocks
-       P    Kernel size in convolutional blocks 
-       norm The type of normalization(gln, cl, bn)
-       causal  Two choice(causal or noncausal)
-       skip_con Whether to use skip connection
-    '''
-
-    def __init__(self, R, X, B, H, P, norm='gln', causal=False, skip_con=True):
-        super(Separation, self).__init__()
-        self.separation = nn.ModuleList([])
-        for r in range(R):
-            for x in range(X):
-                self.separation.append(Conv1D_Block(
-                    B, H, P, 2**x, norm, causal, skip_con))
-        self.skip_con = skip_con
-    
-    def forward(self, x):
-        '''
-           x: [B, N, L]
-           out: [B, N, L]
-        '''
-        if self.skip_con:
-            skip_connection = 0
-            for i in range(len(self.separation)):
-                skip, out = self.separation[i](x)
-                skip_connection = skip_connection + skip
-                x = out
-            return skip_connection
-        else:
-            for i in range(len(self.separation)):
-                out = self.separation[i](x)
-                x = out
-            return x
-
-
-class convtasnet(nn.Module):
+class ConvTasNet(nn.Module):
     '''
        ConvTasNet module
-       N    Number of ﬁlters in autoencoder
-       L    Length of the ﬁlters (in samples)
-       B    Number of channels in bottleneck and the residual paths’ 1 × 1-conv blocks
-       Sc   Number of channels in skip-connection paths’ 1 × 1-conv blocks
-       H    Number of channels in convolutional blocks
-       P    Kernel size in convolutional blocks
-       X    Number of convolutional blocks in each repeat
-       R    Number of repeats
+       N	Number of ﬁlters in autoencoder
+       L	Length of the ﬁlters (in samples)
+       B	Number of channels in bottleneck and the residual paths’ 1 × 1-conv blocks
+       Sc	Number of channels in skip-connection paths’ 1 × 1-conv blocks
+       H	Number of channels in convolutional blocks
+       P	Kernel size in convolutional blocks
+       X	Number of convolutional blocks in each repeat
+       R	Number of repeats
     '''
 
-    def __init__(self, model_options):
-    #     self,
-    #     N=512,
-    #     L=16,
-    #     B=128,
-    #     H=512,
-    #     P=3,
-    #     X=8,
-    #     R=3,
-    #     norm="gln",
-    #     num_spks=2,
-    #     activate="relu",
-    #     causal=False,
-    #     skip_con=False
-    # ):
-        super(convtasnet, self).__init__()
-        N = model_options.N
-        L = model_options.L
-        B = model_options.B
-        
+    def __init__(self,
+                 N=512,
+                 L=16,
+                 B=128,
+                 H=512,
+                 P=3,
+                 X=8,
+                 R=3,
+                 norm="gln",
+                 num_spks=2,
+                 activate="relu",
+                 causal=False):
+        super(ConvTasNet, self).__init__()
         # n x 1 x T => n x N x T
-        self.encoder = Encoder(1, N, L, stride=L // 2)
+        self.encoder = Conv1D(1, N, L, stride=L // 2, padding=0)
         # n x N x T  Layer Normalization of Separation
         self.LayerN_S = select_norm('cln', N)
         # n x B x T  Conv 1 x 1 of  Separation
         self.BottleN_S = Conv1D(N, B, 1)
         # Separation block
         # n x B x T => n x B x T
-        self.separation = Separation(R, X, B, H, P ,norm=norm, causal=causal, skip_con=skip_con)
+        self.separation = self._Sequential_repeat(
+            R, X, in_channels=B, out_channels=H, kernel_size=P, norm=norm, causal=causal)
         # n x B x T => n x 2*N x T
         self.gen_masks = Conv1D(B, num_spks*N, 1)
         # n x N x T => n x 1 x L
-        self.decoder = Decoder(N, L, stride=L//2)
+        self.decoder = ConvTrans1D(N, 1, L, stride=L//2)
         # activation function
         active_f = {
             'relu': nn.ReLU(),
@@ -326,8 +213,32 @@ class convtasnet(nn.Module):
         self.activation = active_f[activate]
         self.num_spks = num_spks
 
-    def forward(self, input):
-        x = input[0].float()
+    def _Sequential_block(self, num_blocks, **block_kwargs):
+        '''
+           Sequential 1-D Conv Block
+           input:
+                 num_block: how many blocks in every repeats
+                 **block_kwargs: parameters of Conv1D_Block
+        '''
+        Conv1D_Block_lists = [Conv1D_Block(
+            **block_kwargs, dilation=(2**i)) for i in range(num_blocks)]
+
+        return nn.Sequential(*Conv1D_Block_lists)
+
+    def _Sequential_repeat(self, num_repeats, num_blocks, **block_kwargs):
+        '''
+           Sequential repeats
+           input:
+                 num_repeats: Number of repeats
+                 num_blocks: Number of block in every repeats
+                 **block_kwargs: parameters of Conv1D_Block
+        '''
+        repeats_lists = [self._Sequential_block(
+            num_blocks, **block_kwargs) for i in range(num_repeats)]
+        return nn.Sequential(*repeats_lists)
+
+    def forward(self, inp):
+        x, = inp
         if x.dim() >= 3:
             raise RuntimeError(
                 "{} accept 1/2D tensor as input, but got {:d}".format(
@@ -349,7 +260,7 @@ class convtasnet(nn.Module):
         m = self.activation(torch.stack(m, dim=0))
         d = [w*m[i] for i in range(self.num_spks)]
         # decoder part num_spks x n x L
-        s = [self.decoder(d[i]) for i in range(self.num_spks)]
+        s = [self.decoder(d[i], squeeze=True) for i in range(self.num_spks)]
         return s
 
 
@@ -362,12 +273,9 @@ def check_parameters(net):
 
 
 def test_convtasnet():
-    x = torch.randn(4, 32000)
+    x = torch.randn(4, 32)
     nnet = ConvTasNet()
     s = nnet(x)
-    print(str(check_parameters(nnet))+' Mb')
-    print(nnet)
+    print(str(look_parameters(nnet))+' Mb')
+    print(s[1].shape)
 
-
-if __name__ == "__main__":
-    test_convtasnet()

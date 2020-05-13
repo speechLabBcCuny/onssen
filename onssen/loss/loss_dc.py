@@ -41,4 +41,4 @@ def loss_dc(output, label):
     loss_true = norm(torch.bmm(T(label), label))
     loss_embedding = loss_est - loss_est_true + loss_true
 
-    return loss_embedding
+    return loss_embedding * mag_mix.sum(1, keepdim=True)

@@ -9,7 +9,7 @@ from .loss_dc import loss_dc
 from .loss_chimera import loss_chimera_msa, loss_chimera_psa
 from .loss_mask import loss_mask_msa, loss_mask_psa
 from .loss_phase import loss_phase
-from .e2e import SI_SNR, permute_SI_SNR, sisnr, si_snr_loss
+from .loss_e2e import SI_SNR, permute_SI_SNR, sisnr, si_snr_loss
 from .loss_util import T, norm, norm_1d
 
 

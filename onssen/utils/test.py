@@ -28,14 +28,15 @@ class tester:
 
     def eval(self):
         sdrs = AverageMeter()
-        self.model.eval()
-        for i, data in enumerate(self.test_loader):
-            input, label = data
-            output = self.model(input)
-            sig_est, sig_ref = self.get_est_sig(input, label, output)
-            sdr = batch_SDR_torch(sig_est, sig_ref)
-            sdrs.update(sdr)
-            print("SDR: %.2f"%(sdrs.avg), end='\r')
+        self.model = self.model.eval()
+        with torch.no_grad():
+            for i, data in enumerate(self.test_loader):
+                input, label = data
+                output = self.model(input)
+                sig_est, sig_ref = self.get_est_sig(input, label, output)
+                sdr = batch_SDR_torch(sig_est, sig_ref)
+                sdrs.update(sdr)
+                print("SDR: %.2f"%(sdrs.avg), end='\r')
 
         print("\n")
 

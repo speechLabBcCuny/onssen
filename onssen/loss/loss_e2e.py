@@ -67,9 +67,8 @@ def sisnr(x, s, eps=1e-8):
     return 20 * torch.log10(eps + l2norm(t) / (l2norm(x_zm - t) + eps))
 
 
-def si_snr_loss(ests, egs):
-    # spks x n x S
-    refs = egs["ref"]
+def si_snr_loss(ests, refs):
+    # spks x N x S
     num_spks = len(refs)
 
     def sisnr_loss(permute):
@@ -80,7 +79,7 @@ def si_snr_loss(ests, egs):
         # average the value
 
     # P x N
-    N = egs["mix"].size(0)
+    N, S = refs[0].shape
     sisnr_mat = torch.stack(
         [sisnr_loss(p) for p in permutations(range(num_spks))])
     max_perutt, _ = torch.max(sisnr_mat, dim=0)

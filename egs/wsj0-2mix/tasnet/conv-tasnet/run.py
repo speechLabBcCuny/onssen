@@ -1,29 +1,30 @@
+import sys
+sys.path.append('../../../../../onssen/')
+sys.path.append('../')
 from onssen import data, loss, nn, utils
 from attrdict import AttrDict
 import torch
 import json
+from evaluate import tester_tasnet
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Parse the config path')
-    parser.add_argument("-c", "--config", dest="path",
-                        help='The path to the config file. e.g. python run.py --config dc_config.json')
-
-    config = parser.parse_args()
-    with open(config.path) as f:
+    config_path = './config.json'
+    with open(config_path) as f:
         args = json.load(f)
         args = AttrDict(args)
     device = torch.device(args.device)
-    args.model = onssen.nn.convtasnet(args.model_options)
+    args.device = device
+    args.model = nn.ConvTasNet(**args["model_options"])
     args.model.to(device)
     args.train_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tr', device)
     args.valid_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'cv', device)
+    args.test_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tt', device)
     args.optimizer = utils.build_optimizer(args.model.parameters(), args.optimizer_options)
-    args.loss_fn = loss.loss_dc
-    trainer = onssen.utils.trainer(args)
+    args.loss_fn = loss.si_snr_loss
+    trainer = utils.trainer(args)
     trainer.run()
-
-    tester = onssen.utils.tester(args)
+    tester = tester_tasnet(args)
     tester.eval()
 
 

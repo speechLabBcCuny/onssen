@@ -21,11 +21,9 @@ class chimera(nn.Module):
             bidirectional=True,
             batch_first = True
         )
-        bn = nn.BatchNorm1d(hidden_dim*2)
         fc_dc = nn.Linear(hidden_dim*2, input_dim*embedding_dim)
         fc_mi = nn.Linear(hidden_dim*2, input_dim*num_speaker)
         self.add_module('rnn', rnn)
-        self.add_module('bn', bn)
         self.add_module('fc_dc', fc_dc)
         self.add_module('fc_mi', fc_mi)
 
@@ -36,9 +34,6 @@ class chimera(nn.Module):
         batch_size, frame, frequency = x.size()
         self.rnn.flatten_parameters()
         rnn_output, hidden = self.rnn(x)
-        rnn_output = rnn_output.permute(0, 2, 1)
-        rnn_output = self.bn(rnn_output)
-        rnn_output = rnn_output.permute(0, 2, 1)
         embedding = self.fc_dc(rnn_output)
         masks = self.fc_mi(rnn_output)
         embedding = embedding.reshape(batch_size, frame*frequency, -1)

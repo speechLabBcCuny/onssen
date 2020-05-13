@@ -1,8 +1,8 @@
 {
   "model_name": "chimera",
   "feature_options": {
-    "data_path": "/home/data/wsj0-2mix/",
-    "batch_size": 16,
+    "data_path": "/home/data/wsj0-mix/2speakers/",
+    "batch_size": 8,
     "frame_length": 400,
     "sampling_rate": 8000,
     "window_size": 256,
@@ -17,9 +17,9 @@
     "input_dim": 129,
     "hidden_dim": 300,
     "embedding_dim": 20,
-    "num_layers": 3
+    "num_layers": 4
   },
-  "device": "cpu",
+  "device": "cuda",
   "num_speaker": 2,
   "num_epoch": 200,
   "resume_from_checkpoint": "False",

@@ -1,20 +1,15 @@
 import sys
 sys.path.append('../../../../../onssen/')
-
+sys.path.append('../')
 from onssen import data, loss, nn, utils
 from attrdict import AttrDict
-import argparse
 import torch
 import json
-
+from evaluate import tester_chimera
 
 def main():
-    parser = argparse.ArgumentParser(description='Parse the config path')
-    parser.add_argument("-c", "--config", dest="path",
-                        help='The path to the config file. e.g. python run.py --config config.json')
-
-    config = parser.parse_args()
-    with open(config.path) as f:
+    config_path = './config.json'
+    with open(config_path) as f:
         args = json.load(f)
         args = AttrDict(args)
     device = torch.device(args.device)
@@ -22,12 +17,12 @@ def main():
     args.model.to(device)
     args.train_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tr', device)
     args.valid_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'cv', device)
+    args.test_loader = data.wsj0_2mix_dataloader(args.model_name, args.feature_options, 'tt', device)
     args.optimizer = utils.build_optimizer(args.model.parameters(), args.optimizer_options)
     args.loss_fn = loss.loss_chimera_msa
     trainer = utils.trainer(args)
     trainer.run()
-
-    tester = utils.tester(args)
+    tester = tester_chimera(args)
     tester.eval()
 
 
